@@ -1,8 +1,6 @@
 .env
-.cache/
-.usage.json
+.venv/
 __pycache__/
 *.pyc
-.venv/
-venv/
-.DS_Store
+.cache/
+traces.db

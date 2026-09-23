@@ -1,0 +1,27 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Voice Router · супервизор</title>
+  <link rel="stylesheet" href="/static/css/app.css">
+</head>
+<body>
+  <header>
+    <h1>Панель супервизора</h1>
+    <a href="/">← Экран клиента</a>
+  </header>
+  <main style="max-width: 1200px">
+    <div class="grid" id="kpis"></div>
+    <div class="card" style="margin-bottom: 14px">
+      <table>
+        <thead><tr><th>Время</th><th>Сессия</th><th>Реплика клиента</th><th>Решение роутера</th><th>Ответ</th></tr></thead>
+        <tbody id="rows"></tbody>
+      </table>
+    </div>
+    <div class="card"><b>Сценарии</b><table id="byScenario"></table></div>
+  </main>
+  <script src="/static/js/common.js"></script>
+  <script src="/static/js/supervisor.js"></script>
+</body>
+</html>

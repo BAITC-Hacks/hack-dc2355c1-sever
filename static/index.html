@@ -1,0 +1,28 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Voice Router</title>
+  <link rel="stylesheet" href="/static/css/app.css">
+</head>
+<body>
+  <header>
+    <h1>Voice Router · контакт-центр</h1>
+    <a href="/supervisor" target="_blank">Панель супервизора →</a>
+  </header>
+  <main>
+    <div class="card chat" id="chat">
+      <div class="msg bot">Здравствуйте! Нажмите «Говорить» и расскажите, чем помочь. Можно по-русски или по-казахски.</div>
+    </div>
+    <div class="controls">
+      <button class="mic" id="mic">🎙 Говорить</button>
+      <input id="text" placeholder="…или напишите текстом (резервный канал)" autocomplete="off">
+      <button id="send">Отправить</button>
+    </div>
+    <div class="status" id="status"></div>
+  </main>
+  <script src="/static/js/common.js"></script>
+  <script src="/static/js/client.js"></script>
+</body>
+</html>
