@@ -11,6 +11,8 @@
 """
 
 import json
+import re
+from collections.abc import Awaitable, Callable
 from dataclasses import dataclass, field
 from typing import Any
 
@@ -41,6 +43,7 @@ RULES = """Ты — голосовой оператор контакт-цент�
 - Необратимые действия: когда все данные собраны — В ЭТОЙ ЖЕ реплике вызови действие с mode="preview", озвучь результат preview (суммы, номера, даты) и попроси явное «да». Никогда не проси подтверждение без preview.
 - mode="execute" — только если клиент на этой реплике явно подтвердил («да», «иә», «растаймын», «оформляйте»). Если клиент отказался — ничего не выполняй.
 - Ошибки действий: not_found/invalid_input — переспроси один раз, затем предложи другой идентификатор или оператора; policy_inactive/not_eligible/not_covered — объясни причину одной фразой и предложи ближайший вариант; service_unavailable — передай оператору.
+- Пока идут действия, клиент уже слышит «Сейчас проверю» — не начинай итоговый ответ с этой фразы.
 - Когда вопрос клиента по сценарию полностью решён — вызови complete_scenario.
 - Если сценарий предусматривает передачу оператору (handoff) или ты не справляешься — вызови transfer_to_operator с нужной очередью и кратким резюме, и скажи клиенту, что специалист уже видит суть вопроса."""
 
@@ -133,10 +136,48 @@ def _system(sid: str, lang: str, client: dict | None, slots: dict, queue: list[s
     return "\n\n".join(parts)
 
 
+# Пауза дольше секунды в голосе читается как сбой связи: пока выполняются действия, клиент слышит это.
+FILLER = {"ru": "Сейчас проверю.", "kk": "Қазір тексеремін."}
+SENTENCE_END = re.compile(r"(.+?[.!?…])(?:\s+|$)", re.S)
+OnText = Callable[[str], Awaitable[None]] | None
+
+
+async def _stream_round(messages: list[dict], tools: list[dict], on_text: OnText) -> tuple[str, list[dict]]:
+    """Один вызов модели потоком: текст отдаём в on_text по предложениям (→ TTS сразу),
+    вызовы инструментов собираем из дельт."""
+    stream = await llm._client("openai").chat.completions.create(
+        model=settings.executor_model, messages=messages, tools=tools, stream=True
+    )
+    content, pending = "", ""
+    calls: dict[int, dict] = {}
+    async for chunk in stream:
+        if not chunk.choices:
+            continue
+        delta = chunk.choices[0].delta
+        for tc in delta.tool_calls or []:
+            slot = calls.setdefault(tc.index, {"id": "", "type": "function", "function": {"name": "", "arguments": ""}})
+            slot["id"] = tc.id or slot["id"]
+            if tc.function and tc.function.name:
+                slot["function"]["name"] += tc.function.name
+            if tc.function and tc.function.arguments:
+                slot["function"]["arguments"] += tc.function.arguments
+        if delta.content:
+            content += delta.content
+            pending += delta.content
+            while on_text and (m := SENTENCE_END.match(pending)):
+                await on_text(m.group(1).strip())
+                pending = pending[m.end():]
+    if on_text and pending.strip():
+        await on_text(pending.strip())
+    return content.strip(), [calls[i] for i in sorted(calls)]
+
+
 async def run(
     sid: str, lang: str, user_text: str, history: list[dict], client: dict | None,
     slots: dict, queue: list[str], previews: dict[str, dict], turn_slots: dict | None = None,
+    on_text: OnText = None,
 ) -> ExecResult:
+    """on_text получает готовые предложения ответа по мере генерации — их сразу озвучивает TTS."""
     sc = catalog.scenarios[sid]
     names = list(dict.fromkeys(sc.get("actions", []) + SERVICE_ACTIONS))
     tools = [_tool(n) for n in names] + [COMPLETE_TOOL]
@@ -146,27 +187,34 @@ async def run(
 
     result = ExecResult(reply="", client=client)
     new_previews: dict[str, dict] = {}
-    client_ = llm._client("openai")
+    spoken: list[str] = []
 
-    for _ in range(MAX_ROUNDS):
-        resp = await client_.chat.completions.create(model=settings.executor_model, messages=messages, tools=tools)
-        msg = resp.choices[0].message
-        if not msg.tool_calls:
-            result.reply = (msg.content or "").strip()
+    for round_no in range(MAX_ROUNDS):
+        content, calls = await _stream_round(messages, tools, on_text)
+        if content:
+            spoken.append(content)
+        if not calls:
             break
-        messages.append({"role": "assistant", "content": msg.content, "tool_calls": [tc.model_dump() for tc in msg.tool_calls]})
-        for tc in msg.tool_calls:
-            name = tc.function.name
+        if round_no == 0 and not content and on_text and any(c["function"]["name"] != "complete_scenario" for c in calls):
+            await on_text(FILLER[lang])
+            spoken.append(FILLER[lang])
+        messages.append({"role": "assistant", "content": content or None, "tool_calls": calls})
+        for tc in calls:
+            name = tc["function"]["name"]
             try:
-                args = json.loads(tc.function.arguments or "{}")
+                args = json.loads(tc["function"]["arguments"] or "{}")
             except json.JSONDecodeError:
                 args = {}
             out = _execute(name, args, names, previews, new_previews, result)
-            messages.append({"role": "tool", "tool_call_id": tc.id, "content": json.dumps(out, ensure_ascii=False, default=str)})
+            messages.append({"role": "tool", "tool_call_id": tc["id"], "content": json.dumps(out, ensure_ascii=False, default=str)})
     else:
-        result.reply = "Минуту, передаю вопрос специалисту." if lang == "ru" else "Бір минут, сұрағыңызды маманға беремін."
+        fallback = "Минуту, передаю вопрос специалисту." if lang == "ru" else "Бір минут, сұрағыңызды маманға беремін."
+        spoken.append(fallback)
+        if on_text:
+            await on_text(fallback)
         result.handoff_queue = "operator_general"
 
+    result.reply = " ".join(spoken).strip()
     result.previews = new_previews
     return result
 
