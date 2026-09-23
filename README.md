@@ -50,6 +50,7 @@ railway domain                                  # HTTPS-домен — нуже�
 python -m scripts.eval_router --mode strong   # 104 реплики dev-набора → эталонный evaluate.py
 python -m scripts.run_dialogs                 # 10 размеченных диалогов через весь конвейер
 python -m scripts.rehearsal                   # 10 реплик в формате проверки жюри
+python -m scripts.smoke_api [URL]             # смоук-тест API на запущенном сервере (по умолчанию localhost:8000)
 ```
 
 ---
