@@ -101,7 +101,8 @@ def handoff(session_id: str):
 @app.websocket("/ws/session")
 async def ws_session(ws: WebSocket):
     """Протокол: JSON {"type":"text","text":...} или бинарное аудио одной реплики.
-    Ответ: transcript → bot_partial (предложения по мере генерации) → tts_start → mp3-чанки → trace → tts_end → final."""
+    Ответ: transcript → bot_partial (предложения по мере генерации) → tts_start → mp3-чанки → trace → tts_end → final.
+    Звук — только на голосовую реплику (или текстовую с "speak": true); на текст бот отвечает текстом."""
     await ws.accept()
     session = Session()
     sessions[session.id] = session
@@ -124,6 +125,7 @@ async def ws_session(ws: WebSocket):
 async def _session_turn(ws: WebSocket, session: Session, msg: dict) -> None:
     """Одна реплика клиента: STT (если аудио) → роутер → исполнитель → озвучка → трассировка."""
     sw = Stopwatch()
+    speak = bool(msg.get("bytes"))  # голосом спросили — голосом отвечаем; текстом — только текстом
     if msg.get("bytes"):
         try:
             with sw.stage("stt"):
@@ -144,8 +146,9 @@ async def _session_turn(ws: WebSocket, session: Session, msg: dict) -> None:
         text = (data.get("text") or "").strip() if isinstance(data, dict) else ""
         if not text:
             return
+        speak = bool(data.get("speak"))  # {"speak": true} — озвучить и текстовую реплику (тесты, демо)
 
-    speaker = _Speaker(ws, sw)
+    speaker = _Speaker(ws, sw, speak)
     trace = await session.handle_text(text, sw, on_text=speaker.say)
     if not speaker.used:  # системная реплика без генерации — озвучиваем целиком (до trace: клиент рисует один пузырь)
         await speaker.say(trace.bot_text)
@@ -160,8 +163,8 @@ class _Speaker:
     """Конвейер озвучки: предложения ответа ставятся в очередь по мере генерации,
     отдельная задача синтезирует их по порядку и сразу шлёт mp3-чанки клиенту."""
 
-    def __init__(self, ws: WebSocket, sw: Stopwatch) -> None:
-        self.ws, self.sw = ws, sw
+    def __init__(self, ws: WebSocket, sw: Stopwatch, speak: bool = True) -> None:
+        self.ws, self.sw, self.speak = ws, sw, speak
         self.queue: asyncio.Queue[str | None] = asyncio.Queue()
         self.used = False
         self.task: asyncio.Task | None = None
@@ -172,8 +175,9 @@ class _Speaker:
         self.used = True
         if self.task is None:
             self.task = asyncio.create_task(self._run())
-        await self.ws.send_json({"type": "bot_partial", "text": sentence})
-        await self.queue.put(sentence)
+        await self.ws.send_json({"type": "bot_partial", "text": sentence, "speak": self.speak})
+        if self.speak:
+            await self.queue.put(sentence)
 
     async def _run(self) -> None:
         started = False

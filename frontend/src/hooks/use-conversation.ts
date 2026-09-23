@@ -101,7 +101,7 @@ export function useConversation() {
           setMessages(items => items.some(item => item.id === id)
             ? items.map(item => item.id === id ? { ...item, text: `${item.text} ${m.text}`.trim() } : item)
             : [...items, { id, role: "assistant", text: m.text }]);
-          if (ttsMode === "browser" && !muteRef.current && "speechSynthesis" in window) {
+          if (ttsMode === "browser" && m.speak !== false && !muteRef.current && "speechSynthesis" in window) {
             const speech = new SpeechSynthesisUtterance(m.text);
             speech.lang = /[әіңғүұқөһ]/i.test(m.text) ? "kk-KZ" : "ru-RU";
             window.speechSynthesis.speak(speech);
