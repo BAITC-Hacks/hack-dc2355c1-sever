@@ -260,3 +260,4 @@ h1, h2, h3 { font-weight: 700; color: var(--ink-strong); }
 .trace-row .chip.good { color: var(--status-neutral); background: var(--status-neutral-bg); border-color: var(--status-neutral); }
 .trace-row .chip.warn, .chip.bad { color: var(--status-red); background: var(--status-red-bg); border-color: var(--status-red); }
 .trace-row .chip[title]:not(.good):not(.warn):not(.bad) { color: var(--status-amber); background: var(--status-amber-bg); border-color: var(--status-amber); }
+.talk-button, .send-button { color: var(--surface); }
