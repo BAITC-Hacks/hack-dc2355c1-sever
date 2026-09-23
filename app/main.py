@@ -145,9 +145,9 @@ async def _session_turn(ws: WebSocket, session: Session, msg: dict) -> None:
 
     speaker = _Speaker(ws, sw)
     trace = await session.handle_text(text, sw, on_text=speaker.say)
-    await ws.send_json({"type": "trace", "trace": trace.model_dump()})
-    if not speaker.used:  # системная реплика без генерации — озвучиваем целиком
+    if not speaker.used:  # системная реплика без генерации — озвучиваем целиком (до trace: клиент рисует один пузырь)
         await speaker.say(trace.bot_text)
+    await ws.send_json({"type": "trace", "trace": trace.model_dump()})
     await speaker.close()
 
     trace = await session.finish(trace, sw)
