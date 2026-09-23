@@ -19,11 +19,12 @@ class Settings(BaseSettings):
     nvidia_model: str = "meta/llama-3.1-8b-instruct"
 
     elevenlabs_api_key: str = ""
-    elevenlabs_stt_model: str = "scribe_v1"
+    elevenlabs_stt_model: str = "scribe_v2"
+    elevenlabs_stt_language: str = "kaz"
     elevenlabs_tts_model: str = "eleven_flash_v2_5"
     elevenlabs_voice_id: str = "21m00Tcm4TlvDq8ikWAM"
 
-    stt_provider: str = "elevenlabs"
+    stt_provider: str = "openai"  # gpt-4o-transcribe точнее на смешанной ru/kk речи; elevenlabs — запасной
     tts_provider: str = "elevenlabs"
 
     route_threshold: float = 0.75  # ≥ → запуск сценария
