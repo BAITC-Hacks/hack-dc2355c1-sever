@@ -7,6 +7,7 @@
 import hashlib
 import json
 import os
+import re
 import pathlib
 import random
 import sys
