@@ -12,6 +12,7 @@ class Settings(BaseSettings):
     openai_model: str = "gpt-4.1-mini"
     executor_model: str = "gpt-4.1"
     openai_embed_model: str = "text-embedding-3-small"
+    openai_stt_model: str = "gpt-4o-transcribe"  # запасной STT; whisper-1 плохо пишет казахский
 
     nvidia_api_key: str = ""
     nvidia_base_url: str = "https://integrate.api.nvidia.com/v1"

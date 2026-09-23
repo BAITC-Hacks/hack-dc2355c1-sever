@@ -19,6 +19,7 @@ import time
 
 from app.config import ROOT, settings
 from app import normalize
+from app.backend import TODAY
 from app.router import cascade, policy
 from app.tracing import Stopwatch
 
@@ -29,7 +30,7 @@ async def run_one(u: dict, sem: asyncio.Semaphore) -> dict:
     async with sem:
         sw = Stopwatch()
         try:
-            raw, path, _, full = await cascade.raw_route(u["text"], [], None, sw, normalize.extract(u["text"]))
+            raw, path, _, full = await cascade.raw_route(u["text"], [], None, sw, normalize.extract(u["text"], TODAY))
             decided_ms = sw.total()
             if full:
                 await full
