@@ -68,9 +68,9 @@ vec4 extractAlpha(vec3 c) {
   float a = max(max(c.r,c.g),c.b);
   return vec4(c/(a+1e-5),a);
 }
-const vec3 baseColor1 = vec3(0.611765,0.262745,0.996078);
-const vec3 baseColor2 = vec3(0.298039,0.760784,0.913725);
-const vec3 baseColor3 = vec3(0.062745,0.078431,0.600000);
+const vec3 baseColor1 = vec3(0.000000,0.501961,0.372549); // зелёный #00805F
+const vec3 baseColor2 = vec3(0.392157,0.976471,0.584314); // мятный #64F995
+const vec3 baseColor3 = vec3(0.015686,0.203922,0.149020); // тёмно-зелёный
 const float innerRadius = 0.6;
 const float noiseScale = 0.65;
 float light1(float intensity,float attenuation,float dist) { return intensity/(1.0+dist*attenuation); }
