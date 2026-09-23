@@ -32,7 +32,7 @@ function connect() {
     }
     if (m.type === "tts_start") audioChunks = [];
     if (m.type === "tts_end") playAudio();
-    if (m.type === "timing" && lastBot) lastBot.querySelector(".stages").textContent = stagesText(m.stages_ms);
+    if (m.type === "final" && lastBot) lastBot.querySelector(".trace").innerHTML = traceHtml(m.trace);
     if (m.type === "error") statusEl.textContent = "Ошибка: " + m.message;
   };
 }

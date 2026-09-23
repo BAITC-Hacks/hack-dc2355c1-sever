@@ -42,6 +42,10 @@ class Catalog:
         """Компактная карточка сценария для промпта роутера."""
         sc = self.scenarios[sid]
         lines = [f"{sid} [{sc['domain']}/{sc['category']}, {sc['priority']}] {sc['name']}: {sc['description']}"]
+        slots = sc.get("slots", {})
+        names = [f"{n}*" for n in slots.get("required", [])] + slots.get("optional", [])
+        if names:
+            lines.append("  слоты: " + ", ".join(names))
         for rule in sc.get("not_this_if", []):
             lines.append(f"  - НЕ он, если {rule['condition']} → {rule['use_instead']}")
         ex = sc.get("examples", {})

@@ -12,7 +12,7 @@ from pydantic import BaseModel
 from . import tracing
 from .catalog import catalog
 from .config import settings
-from .orchestrator import Session, finish
+from .orchestrator import Session
 from .providers import llm, stt, tts
 from .router import candidates
 from .tracing import Stopwatch
@@ -85,7 +85,7 @@ async def chat(body: ChatIn):
     sessions[session.id] = session
     sw = Stopwatch()
     trace = await session.handle_text(body.text, sw)
-    return finish(trace, sw)
+    return await session.finish(trace, sw)
 
 
 @app.get("/api/sessions/{session_id}/handoff")
@@ -142,8 +142,8 @@ async def ws_session(ws: WebSocket):
                     await ws.send_json({"type": "error", "message": f"TTS: {e}"})
                 await ws.send_json({"type": "tts_end"})
 
-            trace = finish(trace, sw)
-            await ws.send_json({"type": "timing", "stages_ms": trace.stages_ms})
+            trace = await session.finish(trace, sw)
+            await ws.send_json({"type": "final", "trace": trace.model_dump()})
     except WebSocketDisconnect:
         pass
 
