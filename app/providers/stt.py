@@ -31,7 +31,8 @@ async def _elevenlabs(audio: bytes, mime: str) -> tuple[str, str | None]:
         resp = await client.post(
             "https://api.elevenlabs.io/v1/speech-to-text",
             headers={"xi-api-key": settings.elevenlabs_api_key},
-            data={"model_id": settings.elevenlabs_stt_model},
+            # Без подсказки Scribe принимает казахский за турецкий/украинский; с «kaz» русский распознаёт так же хорошо.
+            data={"model_id": settings.elevenlabs_stt_model, "language_code": settings.elevenlabs_stt_language},
             files={"file": (sniff(audio)[0], audio, sniff(audio)[1])},
         )
         resp.raise_for_status()
