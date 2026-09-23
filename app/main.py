@@ -34,12 +34,14 @@ app.mount("/static", StaticFiles(directory=STATIC), name="static")
 
 @app.get("/")
 def client_page():
-    return FileResponse(STATIC / "index.html")
+    page = STATIC / "ui" / "index.html"
+    return FileResponse(page if page.exists() else STATIC / "index.html")
 
 
 @app.get("/supervisor")
 def supervisor_page():
-    return FileResponse(STATIC / "supervisor.html")
+    page = STATIC / "ui" / "index.html"
+    return FileResponse(page if page.exists() else STATIC / "supervisor.html")
 
 
 @app.get("/api/health")
