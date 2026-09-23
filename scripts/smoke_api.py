@@ -115,7 +115,7 @@ async def main() -> None:
         hello = json.loads(await ws.recv())
         check(hello.get("type") == "session" and hello.get("session_id"), "WS /ws/session: приветствие", json.dumps(hello))
 
-        turn = await ws_turn(ws, json.dumps({"type": "text", "text": "Мне звонили от вашего имени и просили код из смс"}))
+        turn = await ws_turn(ws, json.dumps({"type": "text", "text": "Мне звонили от вашего имени и просили код из смс", "speak": True}))
         order_ok = turn["types"].index("trace") < turn["types"].index("final")
         check("final" in turn and turn["final"]["decision"]["scenarios"][0]["scenario_id"] == "SC38" and order_ok,
               "WS текст: мошенничество → SC38, trace раньше final")
@@ -140,6 +140,8 @@ async def main() -> None:
         turn = await ws_turn(ws, json.dumps({"type": "text", "text": "Можно у вас взять кредит?"}))
         check("final" in turn and turn["final"]["decision"]["action"] == "out_of_scope",
               "WS: после пустого текста и не-JSON соединение живо, вне тематики → out_of_scope")
+        check(turn["audio_bytes"] == 0 and "tts_start" not in turn["types"] and turn["partials"],
+              "WS: текстом спросили — ответ только текстом, без звука", f"{turn['audio_bytes']} байт звука")
 
         # аудио: синтезируем фразу через TTS сервера не можем — отправляем mp3 из предыдущего ответа
         audio = await _tts_sample()
@@ -164,7 +166,7 @@ async def _tts_sample() -> bytes | None:
         if hello.get("tts") == "browser":
             return None
         chunks = []
-        await ws.send(json.dumps({"type": "text", "text": "Спасибо, до свидания"}))
+        await ws.send(json.dumps({"type": "text", "text": "Спасибо, до свидания", "speak": True}))
         while True:
             m = await asyncio.wait_for(ws.recv(), timeout=60)
             if isinstance(m, bytes):

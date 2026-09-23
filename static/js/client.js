@@ -68,13 +68,13 @@ function connect() {
       if (!partialBot) partialBot = add("bot", "");
       partialBot.textContent = (partialBot.textContent + " " + m.text).trim();
       statusEl.textContent = "";
-      if (ttsMode === "browser") speak(m.text, /[әіңғүұқөһ]/i.test(m.text) ? "kk" : "ru");
+      if (ttsMode === "browser" && m.speak !== false) speak(m.text, /[әіңғүұқөһ]/i.test(m.text) ? "kk" : "ru");
     }
     if (m.type === "trace") {
       const t = m.trace;
       const html = `${esc(t.bot_text)}<div class="trace">${traceHtml(t)}</div>`;
       if (partialBot) { partialBot.innerHTML = html; lastBot = partialBot; partialBot = null; }
-      else { lastBot = add("bot", html); if (ttsMode === "browser") speak(t.bot_text, t.decision.reply_language); }
+      else { lastBot = add("bot", html); }
       statusEl.textContent = "";
     }
     if (m.type === "tts_start") player.start();
