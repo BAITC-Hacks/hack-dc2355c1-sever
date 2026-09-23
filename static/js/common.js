@@ -19,6 +19,19 @@ function stagesText(stages) {
   return Object.entries(stages || {}).map(([k, v]) => `${k} ${Math.round(v)}мс`).join(" · ");
 }
 
+function actionsHtml(actions) {
+  if (!actions || !actions.length) return "";
+  const items = actions.map((a) => {
+    const err = a.result && a.result.error;
+    const cls = a.guard || a.blocked ? "warn" : err ? "danger" : "";
+    const label = `${esc(a.name)}${a.mode ? ":" + esc(a.mode) : ""}`;
+    const title = esc(JSON.stringify({ args: a.args, result: a.result, guard: a.guard }));
+    return `<span class="pill ${cls}" title="${title}">${label}${err ? " ✗ " + esc(err.code) : ""}</span>`;
+  }).join(" ");
+  const guards = actions.filter((a) => a.guard).map((a) => `<div class="mono">защита: ${esc(a.guard)}</div>`).join("");
+  return `<div>действия: ${items}</div>${guards}`;
+}
+
 function traceHtml(t) {
   const d = t.decision;
   const hits = (d.scenarios || []).map((s) => `<span class="pill">${esc(s.scenario_id)} ${pctStr(s.confidence)}</span>`).join("");
@@ -32,5 +45,8 @@ function traceHtml(t) {
     <div class="mono">политика: ${esc(d.policy_note)}</div>
     ${Object.keys(d.slots || {}).length ? `<div class="mono">слоты: ${esc(JSON.stringify(d.slots))}</div>` : ""}
     ${t.topic_queue && t.topic_queue.length ? `<div class="mono">стек тем: ${esc(t.topic_queue.join(" → "))}</div>` : ""}
+    ${t.client_id ? `<div class="mono">клиент: ${esc(t.client_id)}</div>` : ""}
+    ${actionsHtml(t.actions)}
+    ${t.handoff_queue ? `<div><span class="pill danger">передано: ${esc(t.handoff_queue)}</span></div>` : ""}
     <div class="mono stages">${stagesText(t.stages_ms)}</div>`;
 }

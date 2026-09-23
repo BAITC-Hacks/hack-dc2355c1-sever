@@ -1,5 +1,6 @@
 """Единый клиент для OpenAI-совместимых API (OpenAI и NVIDIA NIM)."""
 
+import asyncio
 import json
 import re
 
@@ -44,6 +45,57 @@ async def chat_json(provider: str, system: str, user: str) -> dict:
         **kwargs,
     )
     return _extract_json(resp.choices[0].message.content or "{}")
+
+
+def _close_prefix(buf: str, split_key: str) -> dict | None:
+    """JSON-префикс до split_key → валидный объект (закрываем скобку)."""
+    idx = buf.find(split_key)
+    if idx < 0:
+        return None
+    head = buf[:idx].rstrip().rstrip(",") + "}"
+    try:
+        return json.loads(head)
+    except json.JSONDecodeError:
+        return None
+
+
+async def chat_json_stream(provider: str, system: str, user: str, split_key: str) -> tuple[dict, "asyncio.Task[dict]"]:
+    """Потоковый вызов: возвращает решение, как только модель дописала всё до split_key,
+    и задачу, которая дочитывает поток и отдаёт полный JSON (обоснование для супервизора)."""
+    model = settings.nvidia_model if provider == "nvidia" else settings.openai_model
+    kwargs = {"temperature": 0} if provider == "nvidia" else {}
+    stream = await _client(provider).chat.completions.create(
+        model=model,
+        stream=True,
+        messages=[{"role": "system", "content": system}, {"role": "user", "content": user}],
+        response_format={"type": "json_object"},
+        **kwargs,
+    )
+    head: asyncio.Future[dict] = asyncio.get_running_loop().create_future()
+
+    async def consume() -> dict:
+        buf = ""
+        try:
+            async for chunk in stream:
+                delta = chunk.choices[0].delta.content if chunk.choices else None
+                if not delta:
+                    continue
+                buf += delta
+                if not head.done():
+                    parsed = _close_prefix(buf, split_key)
+                    if parsed is not None:
+                        head.set_result(parsed)
+            full = _extract_json(buf or "{}")
+        except Exception as e:
+            if not head.done():
+                head.set_exception(e)
+            raise
+        if not head.done():
+            head.set_result(full)
+        return full
+
+    task = asyncio.create_task(consume())
+    return await head, task
 
 
 async def embed(texts: list[str]) -> list[list[float]]:

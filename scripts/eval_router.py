@@ -18,6 +18,7 @@ import sys
 import time
 
 from app.config import ROOT, settings
+from app import normalize
 from app.router import cascade, policy
 from app.tracing import Stopwatch
 
@@ -28,7 +29,10 @@ async def run_one(u: dict, sem: asyncio.Semaphore) -> dict:
     async with sem:
         sw = Stopwatch()
         try:
-            raw, path, _ = await cascade.raw_route(u["text"], [], None, sw)
+            raw, path, _, full = await cascade.raw_route(u["text"], [], None, sw, normalize.extract(u["text"]))
+            decided_ms = sw.total()
+            if full:
+                await full
         except Exception as e:
             return {"id": u["id"], "pred": [], "raw": [], "path": "error", "ms": sw.total(), "error": str(e)[:200]}
         if raw is None:
@@ -36,7 +40,7 @@ async def run_one(u: dict, sem: asyncio.Semaphore) -> dict:
         raw_ids = [s.scenario_id for s in raw.scenarios]
         d = policy.apply(raw.model_copy(deep=True), None, 0)
         return {
-            "id": u["id"], "pred": d.predicted_ids(), "raw": raw_ids, "path": path, "ms": sw.total(),
+            "id": u["id"], "pred": d.predicted_ids(), "raw": raw_ids, "path": path, "ms": decided_ms, "full_ms": sw.total(),
             "conf": raw.confidence, "lang": raw.language, "reply_lang": raw.reply_language,
         }
 

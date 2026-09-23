@@ -47,6 +47,7 @@ class Turn(BaseModel):
     role: Literal["user", "bot"]
     text: str
     scenario_id: str | None = None
+    meta: str | None = None  # итоги действий бота (для контекста исполнителя)
 
 
 class Trace(BaseModel):
@@ -60,4 +61,7 @@ class Trace(BaseModel):
     stages_ms: dict[str, float] = Field(default_factory=dict)
     active_scenario: str | None = None
     topic_queue: list[str] = Field(default_factory=list)
+    actions: list[dict[str, Any]] = Field(default_factory=list)
+    client_id: str | None = None
+    handoff_queue: str | None = None
     ts: float = 0.0
