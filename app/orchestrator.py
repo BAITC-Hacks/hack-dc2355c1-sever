@@ -28,7 +28,9 @@ class Session:
         self.previews: dict[str, dict] = {}  # необратимые действия, озвученные клиенту и ждущие «да»
         self._why_tasks: dict[int, asyncio.Task | None] = {}
 
-    async def handle_text(self, text: str, sw: Stopwatch | None = None) -> Trace:
+    async def handle_text(self, text: str, sw: Stopwatch | None = None, on_text=None) -> Trace:
+        """on_text(sentence) — куда отдавать предложения ответа по мере генерации (TTS).
+        Если ответ собран без генерации (системные реплики), вызывающий озвучивает trace.bot_text сам."""
         sw = sw or Stopwatch()
         history = self.history[-settings.history_turns * 2 :]
         with sw.stage("triage"):
@@ -66,6 +68,7 @@ class Session:
                     res = await executor.run(
                         self.active, d.reply_language, text, self._llm_history(), self.client,
                         self.slots, [q for q in self.topic_queue if q != self.active], self.previews, d.slots,
+                        on_text=on_text,
                     )
                     reply, actions, handoff_queue = res.reply or reply, res.actions, res.handoff_queue
                     self.client, self.previews = res.client, res.previews
