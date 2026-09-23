@@ -1,5 +1,6 @@
 """FastAPI: экран клиента, панель супервизора, WebSocket-сессии, REST для eval."""
 
+import asyncio
 import json
 from contextlib import asynccontextmanager
 from pathlib import Path
@@ -96,7 +97,7 @@ def handoff(session_id: str):
 @app.websocket("/ws/session")
 async def ws_session(ws: WebSocket):
     """Протокол: JSON {"type":"text","text":...} или бинарное аудио одной реплики.
-    Ответ: transcript → trace → tts_start → бинарные mp3-чанки → tts_end → timing."""
+    Ответ: transcript → bot_partial (предложения по мере генерации) → tts_start → mp3-чанки → trace → tts_end → final."""
     await ws.accept()
     session = Session()
     sessions[session.id] = session
@@ -124,28 +125,60 @@ async def ws_session(ws: WebSocket):
                 if not text:
                     continue
 
-            trace = await session.handle_text(text, sw)
+            speaker = _Speaker(ws, sw)
+            trace = await session.handle_text(text, sw, on_text=speaker.say)
             await ws.send_json({"type": "trace", "trace": trace.model_dump()})
-
-            stream = tts.synthesize(trace.bot_text)
-            if stream is not None:
-                await ws.send_json({"type": "tts_start"})
-                first = True
-                try:
-                    async for chunk in stream:
-                        if first:
-                            sw.stages["tts_first_byte"] = round(sw.total() - sum(v for k, v in sw.stages.items()), 1)
-                            sw.stages["end_to_audio"] = sw.total()
-                            first = False
-                        await ws.send_bytes(chunk)
-                except Exception as e:
-                    await ws.send_json({"type": "error", "message": f"TTS: {e}"})
-                await ws.send_json({"type": "tts_end"})
+            if not speaker.used:  # системная реплика без генерации — озвучиваем целиком
+                await speaker.say(trace.bot_text)
+            await speaker.close()
 
             trace = await session.finish(trace, sw)
             await ws.send_json({"type": "final", "trace": trace.model_dump()})
     except WebSocketDisconnect:
         pass
+
+
+class _Speaker:
+    """Конвейер озвучки: предложения ответа ставятся в очередь по мере генерации,
+    отдельная задача синтезирует их по порядку и сразу шлёт mp3-чанки клиенту."""
+
+    def __init__(self, ws: WebSocket, sw: Stopwatch) -> None:
+        self.ws, self.sw = ws, sw
+        self.queue: asyncio.Queue[str | None] = asyncio.Queue()
+        self.used = False
+        self.task: asyncio.Task | None = None
+
+    async def say(self, sentence: str) -> None:
+        if not sentence:
+            return
+        self.used = True
+        if self.task is None:
+            self.task = asyncio.create_task(self._run())
+        await self.ws.send_json({"type": "bot_partial", "text": sentence})
+        await self.queue.put(sentence)
+
+    async def _run(self) -> None:
+        started = False
+        while (sentence := await self.queue.get()) is not None:
+            stream = tts.synthesize(sentence)
+            if stream is None:  # браузерный TTS — клиент озвучит текст сам
+                continue
+            try:
+                async for chunk in stream:
+                    if not started:
+                        await self.ws.send_json({"type": "tts_start"})
+                        self.sw.stages["end_to_audio"] = self.sw.total()
+                        started = True
+                    await self.ws.send_bytes(chunk)
+            except Exception as e:
+                await self.ws.send_json({"type": "error", "message": f"TTS: {e}"})
+        if started:
+            await self.ws.send_json({"type": "tts_end"})
+
+    async def close(self) -> None:
+        if self.task:
+            await self.queue.put(None)
+            await self.task
 
 
 @app.websocket("/ws/supervisor")

@@ -29,6 +29,7 @@ class Settings(BaseSettings):
     clarify_threshold: float = 0.45  # ниже → неуверенность; два раза подряд → оператор
     fast_confidence_threshold: float = 0.85  # ниже → эскалация с быстрой модели на сильную
     use_fast_path: bool = True
+    speculative_executor: bool = True  # исполнитель параллельно с роутером на репликах-продолжениях
     top_k_candidates: int = 0  # 0 = весь каталог в промпте; >0 = сужение эмбеддингами
     history_turns: int = 6
 

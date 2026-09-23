@@ -11,13 +11,28 @@ from . import llm
 LANG_MAP = {"kaz": "kk", "kk": "kk", "rus": "ru", "ru": "ru"}
 
 
+def sniff(audio: bytes) -> tuple[str, str]:
+    """Формат записи по сигнатуре: Chrome/Firefox пишут webm/ogg, Safari — mp4."""
+    if audio[:4] == b"\x1aE\xdf\xa3":
+        return "speech.webm", "audio/webm"
+    if audio[4:8] == b"ftyp":
+        return "speech.mp4", "audio/mp4"
+    if audio[:4] == b"OggS":
+        return "speech.ogg", "audio/ogg"
+    if audio[:4] == b"RIFF":
+        return "speech.wav", "audio/wav"
+    if audio[:3] == b"ID3" or audio[:2] in (b"\xff\xfb", b"\xff\xf3", b"\xff\xf2"):
+        return "speech.mp3", "audio/mpeg"
+    return "speech.webm", "audio/webm"
+
+
 async def _elevenlabs(audio: bytes, mime: str) -> tuple[str, str | None]:
     async with httpx.AsyncClient(timeout=30) as client:
         resp = await client.post(
             "https://api.elevenlabs.io/v1/speech-to-text",
             headers={"xi-api-key": settings.elevenlabs_api_key},
             data={"model_id": settings.elevenlabs_stt_model},
-            files={"file": ("speech.webm", audio, mime)},
+            files={"file": (sniff(audio)[0], audio, sniff(audio)[1])},
         )
         resp.raise_for_status()
         body = resp.json()
@@ -26,7 +41,7 @@ async def _elevenlabs(audio: bytes, mime: str) -> tuple[str, str | None]:
 
 async def _openai(audio: bytes, mime: str) -> tuple[str, str | None]:
     resp = await llm._client("openai").audio.transcriptions.create(
-        model="whisper-1", file=("speech.webm", audio, mime)
+        model="whisper-1", file=(sniff(audio)[0], audio, sniff(audio)[1])
     )
     return resp.text.strip(), None
 

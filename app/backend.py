@@ -26,6 +26,19 @@ ZONE_BY_COUNTRY = {
 }
 
 
+# Город из речи (ru/kk, любой падеж) → название в данных кита. Сравнение по началу слова.
+CITY_STEMS = {"алмат": "Almaty", "almat": "Almaty", "астан": "Astana", "astan": "Astana", "нур-султан": "Astana",
+              "шымкент": "Shymkent", "shymkent": "Shymkent", "караганд": "Karaganda", "қарағанд": "Karaganda",
+              "karagand": "Karaganda", "павлодар": "Pavlodar", "pavlodar": "Pavlodar", "атырау": "Atyrau",
+              "atyrau": "Atyrau", "актоб": "Aktobe", "ақтөб": "Aktobe", "aktob": "Aktobe", "усть-каменогорск": "Oskemen",
+              "өскемен": "Oskemen", "оскемен": "Oskemen", "oskemen": "Oskemen"}
+
+
+def _city(name: Any) -> str:
+    low = str(name or "").strip().lower()
+    return next((v for k, v in CITY_STEMS.items() if low.startswith(k)), str(name or "").strip())
+
+
 SPECIALTY_SYNONYMS = {"терапевт": "therapist", "лор": "ENT", "ent": "ENT", "стоматолог": "dentist", "зубн": "dentist",
                       "гинеколог": "gynecologist", "кардиолог": "cardiologist", "анализ": "lab", "лаборат": "lab",
                       "тіс": "dentist", "дәрігер": "therapist"}
@@ -137,7 +150,7 @@ class Backend:
             code = re.sub(r"\s", "", vehicle_plate)[-2:]
             region = pr["region_by_plate_code"].get(code, pr["region_by_plate_code"]["default"])
         region = str(region or "").lower()
-        region = {"алматы": "almaty", "астана": "astana"}.get(region, region)
+        region = _city(region).lower() if region else region
         base = pr["base_by_region_kzt"].get(region, pr["base_by_region_kzt"]["other"])
         vtype = str(vehicle_type).lower()
         vtype = next((v for k, v in VEHICLE_SYNONYMS.items() if vtype.startswith(k)), vtype)
@@ -295,6 +308,7 @@ class Backend:
         return {"ticket_id": f"D-{next(self._dispute_seq)}", "review_time": KB["claims"]["dispute"]}
 
     def book_inspection(self, claim_number: str, city: str, preferred_date: str | None = None, **_) -> dict:
+        city = _city(city)
         if not any(c["claim_number"].upper() == str(claim_number).upper() for c in self.claims):
             return self.err("not_found", f"Claim {claim_number} not found")
         point = next((p for p in KB.get("inspection_points", []) if p["city"].lower() == str(city).lower()), None)
@@ -316,7 +330,7 @@ class Backend:
         spec = next((v for k, v in SPECIALTY_SYNONYMS.items() if spec.startswith(k)), spec).lower()
         if p["details"].get("package") == "Basic" and spec not in ("therapist", "lab"):
             return self.err("not_covered", "Basic package covers specialists only by therapist referral")
-        city = city or (self._client(p["client_id"]) or {}).get("city")
+        city = _city(city) if city else (self._client(p["client_id"]) or {}).get("city")
         clinic = next((c for c in KB.get("clinics", []) if c["city"].lower() == str(city).lower() and spec in [s.lower() for s in c["specialties"]]), None)
         if not clinic:
             return self.err("no_availability", f"No partner clinic with {spec} in {city}")
@@ -336,6 +350,7 @@ class Backend:
                 "note": "Decide coverage strictly from covered_list / not_covered_list."}
 
     def list_clinics(self, city: str, doctor_specialty: str | None = None, **_) -> dict:
+        city = _city(city)
         items = [c for c in KB.get("clinics", []) if c["city"].lower() == str(city).lower()
                  and (not doctor_specialty or str(doctor_specialty).lower() in [s.lower() for s in c["specialties"]])]
         return {"clinics": items} if items else self.err("not_found", f"No partner clinics in {city}")
@@ -384,6 +399,7 @@ class Backend:
         return {"sent_to": to, "delivery": avail[document_type], "policy_number": p["policy_number"]}
 
     def get_offices(self, city: str | None = None, **_) -> dict:
+        city = _city(city) if city else None
         items = [o for o in KB.get("offices", []) if not city or o["city"].lower() == str(city).lower()]
         return {"offices": items} if items else self.err("not_found", f"No office in {city}")
 
@@ -450,6 +466,10 @@ def _full_months_between(start: date, end: date) -> int:
 
 backend = Backend()
 IRREVERSIBLE = {a["name"] for a in catalog.actions.get("actions", []) if a.get("irreversible")}
+# Только чтение: их можно вызывать до того, как роутер подтвердил сценарий (параллельный запуск).
+READ_ONLY = {"find_client", "get_policies", "get_policy", "get_bm_class", "calc_ogpo_price", "calc_casco_price",
+             "calc_travel_price", "calc_property_price", "calc_accident_price", "get_claim", "check_coverage",
+             "list_clinics", "check_payment", "get_offices", "kb_lookup", "complete_scenario"}
 
 
 def call(name: str, args: dict, mode: str = "execute") -> dict:
