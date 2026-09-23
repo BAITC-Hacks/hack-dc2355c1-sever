@@ -2,25 +2,45 @@ from typing import Any, Literal
 
 from pydantic import BaseModel, Field
 
+Action = Literal["route", "continue", "clarify", "handoff", "out_of_scope", "goodbye"]
 
-class Alternative(BaseModel):
+
+class ScenarioHit(BaseModel):
     scenario_id: str
     confidence: float = 0.0
-    why: str = ""
+    reason: str = ""
 
 
 class RouteDecision(BaseModel):
-    """Structured output LLM-роутера."""
+    """Structured output LLM-роутера (формат из README стартового кита) + решение политики."""
 
-    action: Literal["route", "clarify", "handoff"] = "route"
-    scenario_id: str | None = None
-    confidence: float = 0.0
-    reasoning: str = ""
-    alternatives: list[Alternative] = Field(default_factory=list)
-    params: dict[str, Any] = Field(default_factory=dict)
-    secondary_scenario_id: str | None = None
+    scenarios: list[ScenarioHit] = Field(default_factory=list)  # в порядке упоминания
+    alternatives: list[ScenarioHit] = Field(default_factory=list)
     language: Literal["ru", "kk", "mixed"] = "ru"
+    reply_language: Literal["ru", "kk"] = "ru"
+    slots: dict[str, Any] = Field(default_factory=dict)
+    is_continuation: bool = False
     clarify_question: str | None = None
+    reasoning: str = ""
+    # Заполняет политика принятия решений, не LLM:
+    action: Action = "route"
+    policy_note: str = ""
+
+    @property
+    def primary(self) -> str | None:
+        return self.scenarios[0].scenario_id if self.scenarios else None
+
+    @property
+    def confidence(self) -> float:
+        return self.scenarios[0].confidence if self.scenarios else 0.0
+
+    def predicted_ids(self) -> list[str]:
+        """То, что уходит в predictions.json для evaluate.py."""
+        if self.action == "clarify":
+            return ["SYS_UNCLEAR"]
+        if self.action == "out_of_scope":
+            return ["SYS_OUT_OF_SCOPE"]
+        return [s.scenario_id for s in self.scenarios]
 
 
 class Turn(BaseModel):
@@ -38,5 +58,6 @@ class Trace(BaseModel):
     path: str  # fast | strong | fast->strong | error
     candidates: list[str] = Field(default_factory=list)
     stages_ms: dict[str, float] = Field(default_factory=dict)
+    active_scenario: str | None = None
     topic_queue: list[str] = Field(default_factory=list)
     ts: float = 0.0

@@ -55,7 +55,7 @@ async def top_k(query: str, k: int | None = None, must_include: list[str] | None
 
 
 async def warmup() -> None:
-    if llm.available("openai") and len(catalog.scenarios) > settings.top_k_candidates:
+    if settings.top_k_candidates and llm.available("openai"):
         try:
             await _build_index()
         except Exception:

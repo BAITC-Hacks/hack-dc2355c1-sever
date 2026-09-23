@@ -1,57 +1,49 @@
 """Текст ответа клиенту по решению роутера.
 
-Ответ собирается из шаблонов сценария — без генерации LLM, чтобы не тратить
-задержку. Данные mock_backend/KB подключаются на этапе 6 плана.
+Сейчас — стартовые реплики сценариев из каталога (responses.*.opening), без генерации LLM.
+Этап 6 плана: генерация, ограниченная сценарием, слотами, результатами действий и базой знаний.
 """
 
 from .catalog import catalog
 from .schemas import RouteDecision
 
-GENERIC = {
-    "ru": "Понял, вопрос по теме «{title}». Сейчас помогу.",
-    "kk": "Түсіндім, «{title}» бойынша сұрақ. Қазір көмектесемін.",
-}
-CLARIFY = {
-    "ru": "Уточните, пожалуйста, что именно вам нужно?",
-    "kk": "Нақтылаңызшы, сізге не керек?",
-}
 HANDOFF = {
-    "ru": "Соединяю вас с оператором и передаю суть разговора, повторять не придётся.",
-    "kk": "Сізді операторға қосамын, әңгіменің мәнін жеткіземін.",
+    "ru": "Соединяю со специалистом и передаю суть разговора — повторять не придётся.",
+    "kk": "Маманға қосамын, әңгіменің мәнін жеткіземін — қайталаудың қажеті жоқ.",
 }
-CONFIRM = {
-    "ru": " Перед выполнением я попрошу вашего подтверждения.",
-    "kk": " Орындамас бұрын растауыңызды сұраймын.",
-}
+CONTINUE = {"ru": "Принято.", "kk": "Қабылдадым."}
 QUEUED = {
-    "ru": " Про «{title}» тоже помню — вернёмся к этому следом.",
-    "kk": " «{title}» туралы да есімде — кейін оған ораламыз.",
+    "ru": " Про второй вопрос тоже помню — вернёмся к нему следом.",
+    "kk": " Екінші сұрағыңыз да есімде — кейін оған ораламыз.",
 }
 
 
-def _lang(d: RouteDecision) -> str:
-    return "kk" if d.language == "kk" else "ru"
+def _system(sid: str, lang: str) -> str:
+    return catalog.system_intents[sid]["response"][lang]
 
 
-def build_reply(d: RouteDecision, queued: str | None = None) -> str:
-    lang = _lang(d)
+def _clarify(d: RouteDecision, lang: str) -> str:
+    if d.clarify_question:
+        return d.clarify_question
+    opts = [catalog.title(a.scenario_id) for a in d.alternatives[:2]]
+    if len(opts) == 2:
+        return _system("SYS_UNCLEAR", lang).format(option_a=opts[0], option_b=opts[1])
+    return "Уточните, пожалуйста, чем я могу помочь?" if lang == "ru" else "Нақтылаңызшы, немен көмектесе аламын?"
+
+
+def build_reply(d: RouteDecision, queued: bool = False) -> str:
+    lang = d.reply_language
     if d.action == "handoff":
         return HANDOFF[lang]
     if d.action == "clarify":
-        return d.clarify_question or CLARIFY[lang]
+        return _clarify(d, lang)
+    if d.action == "out_of_scope":
+        return _system("SYS_OUT_OF_SCOPE", lang)
+    if d.action == "goodbye":
+        return _system("SYS_GOODBYE", lang)
+    if d.action == "continue":
+        return CONTINUE[lang]
 
-    sc = catalog.scenarios[d.scenario_id]
-    responses = sc.get("responses") or {}
-    if isinstance(responses, dict):
-        text = responses.get(lang) or responses.get("ru") or next(iter(responses.values()), None)
-    elif isinstance(responses, list) and responses:
-        text = str(responses[0])
-    else:
-        text = None
-    text = text or GENERIC[lang].format(title=catalog.title(d.scenario_id))
-
-    if catalog.is_irreversible(d.scenario_id):
-        text += CONFIRM[lang]
-    if queued:
-        text += QUEUED[lang].format(title=catalog.title(queued))
-    return text
+    responses = catalog.scenarios[d.primary].get("responses", {})
+    text = responses.get(lang, responses.get("ru", {})).get("opening") or CONTINUE[lang]
+    return text + (QUEUED[lang] if queued else "")
