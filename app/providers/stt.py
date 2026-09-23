@@ -39,9 +39,18 @@ async def _elevenlabs(audio: bytes, mime: str) -> tuple[str, str | None]:
     return body.get("text", "").strip(), LANG_MAP.get(body.get("language_code", ""))
 
 
+# Подсказка для OpenAI STT: без неё казахская речь уходит в латиницу или русскую транслитерацию.
+OPENAI_PROMPT = (
+    "Звонок в контакт-центр страховой компании Saqta Insurance, Казахстан. Клиент говорит по-русски, по-казахски "
+    "или смешивает оба языка в одной фразе. Пиши казахские слова казахской кириллицей (ә, і, ң, ғ, ү, ұ, қ, ө, һ), "
+    "русские — русской. Термины: ОГПО, КАСКО, ДМС, полис, франшиза."
+)
+_disabled: set[str] = set()  # провайдеры, у ключа которых нет прав на STT — не тратим на них запрос каждую реплику
+
+
 async def _openai(audio: bytes, mime: str) -> tuple[str, str | None]:
     resp = await llm._client("openai").audio.transcriptions.create(
-        model="whisper-1", file=(sniff(audio)[0], audio, sniff(audio)[1])
+        model=settings.openai_stt_model, file=(sniff(audio)[0], audio, sniff(audio)[1]), prompt=OPENAI_PROMPT
     )
     return resp.text.strip(), None
 
@@ -51,6 +60,8 @@ async def transcribe(audio: bytes, mime: str = "audio/webm") -> tuple[str, str]:
     order = ["elevenlabs", "openai"] if settings.stt_provider == "elevenlabs" else ["openai", "elevenlabs"]
     last_error: Exception | None = None
     for name in order:
+        if name in _disabled:
+            continue
         if name == "elevenlabs" and not settings.elevenlabs_api_key:
             continue
         if name == "openai" and not settings.openai_api_key:
@@ -58,6 +69,10 @@ async def transcribe(audio: bytes, mime: str = "audio/webm") -> tuple[str, str]:
         try:
             text, _ = await (_elevenlabs if name == "elevenlabs" else _openai)(audio, mime)
             return text, name
+        except httpx.HTTPStatusError as e:
+            last_error = e
+            if e.response.status_code in (401, 403):  # нет прав у ключа — до перезапуска не пробуем
+                _disabled.add(name)
         except Exception as e:
             last_error = e
     raise RuntimeError(f"STT недоступен: {last_error}")

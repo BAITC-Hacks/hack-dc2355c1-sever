@@ -9,6 +9,7 @@ from typing import Any
 from . import backend, executor, normalize
 from .config import settings
 from .responder import build_reply
+from .backend import TODAY
 from .catalog import catalog
 from .providers import llm
 from .router import cascade
@@ -35,7 +36,7 @@ class Session:
         sw = sw or Stopwatch()
         history = self.history[-settings.history_turns * 2 :]
         with sw.stage("triage"):
-            triage = normalize.extract(text)
+            triage = normalize.extract(text, TODAY)
 
         # Параллельный запуск: чаще всего реплика — продолжение активного сценария (ответ на вопрос бота),
         # поэтому исполнитель стартует одновременно с роутером. Его текст и действия, меняющие данные,
