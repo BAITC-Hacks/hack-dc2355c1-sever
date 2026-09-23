@@ -2,10 +2,17 @@ const esc = (s) => String(s ?? "").replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<
 
 const wsUrl = (path) => `${location.protocol === "https:" ? "wss" : "ws"}://${location.host}${path}`;
 
+const topConf = (d) => (d.scenarios && d.scenarios[0] ? d.scenarios[0].confidence : 0);
+const pctStr = (x) => `${Math.round((x || 0) * 100)}%`;
+
+const ACTION_LABELS = {
+  clarify: ["warn", "переспрос"], handoff: ["danger", "оператор"], out_of_scope: ["warn", "вне тематики"],
+  goodbye: ["", "прощание"], continue: ["", "продолжение"],
+};
+
 function actionPill(d) {
-  if (d.action === "handoff") return `<span class="pill danger">оператор</span>`;
-  if (d.action === "clarify") return `<span class="pill warn">переспрос</span>`;
-  return `<span class="pill">${esc(d.scenario_id)}</span>`;
+  const [cls, label] = ACTION_LABELS[d.action] || ["", "сценарий"];
+  return `<span class="pill ${cls}">${label}</span>`;
 }
 
 function stagesText(stages) {
@@ -14,12 +21,16 @@ function stagesText(stages) {
 
 function traceHtml(t) {
   const d = t.decision;
-  const alts = (d.alternatives || []).map((a) => `${esc(a.scenario_id)} ${(a.confidence * 100).toFixed(0)}%`).join(", ");
+  const hits = (d.scenarios || []).map((s) => `<span class="pill">${esc(s.scenario_id)} ${pctStr(s.confidence)}</span>`).join("");
+  const alts = (d.alternatives || []).map((a) => `${esc(a.scenario_id)} ${pctStr(a.confidence)}`).join(", ");
+  const reasons = (d.scenarios || []).filter((s) => s.reason).map((s) => `${esc(s.scenario_id)}: ${esc(s.reason)}`).join("; ");
   return `
-    <div>${actionPill(d)} <b>${(d.confidence * 100).toFixed(0)}%</b> · путь: <span class="mono">${esc(t.path)}</span> · язык: ${esc(d.language)}
-      ${d.secondary_scenario_id ? ` · вторая тема: <span class="pill warn">${esc(d.secondary_scenario_id)}</span>` : ""}</div>
+    <div>${actionPill(d)} ${hits} · путь <span class="mono">${esc(t.path)}</span> · язык ${esc(d.language)} → ответ ${esc(d.reply_language)}</div>
     <div>${esc(d.reasoning)}</div>
+    ${reasons ? `<div>${reasons}</div>` : ""}
     ${alts ? `<div>альтернативы: ${alts}</div>` : ""}
-    ${Object.keys(d.params || {}).length ? `<div class="mono">params: ${esc(JSON.stringify(d.params))}</div>` : ""}
+    <div class="mono">политика: ${esc(d.policy_note)}</div>
+    ${Object.keys(d.slots || {}).length ? `<div class="mono">слоты: ${esc(JSON.stringify(d.slots))}</div>` : ""}
+    ${t.topic_queue && t.topic_queue.length ? `<div class="mono">стек тем: ${esc(t.topic_queue.join(" → "))}</div>` : ""}
     <div class="mono stages">${stagesText(t.stages_ms)}</div>`;
 }

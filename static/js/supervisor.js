@@ -4,7 +4,7 @@ const ms = (x) => (x == null ? "—" : `${Math.round(x)} мс`);
 
 function row(t) {
   const tr = document.createElement("tr");
-  const lowConf = t.decision.confidence < 0.8 || t.decision.action !== "route";
+  const lowConf = topConf(t.decision) < 0.75 || !["route", "continue"].includes(t.decision.action);
   tr.innerHTML = `
     <td class="mono">${new Date(t.ts * 1000).toLocaleTimeString()}</td>
     <td class="mono">${esc(t.session_id)}#${t.turn}</td>
@@ -19,7 +19,7 @@ async function loadStats() {
   const kpis = [
     ["Реплик", s.turns], ["Только быстрый путь", pct(s.fast_only_rate)], ["Эскалаций", pct(s.escalation_rate)],
     ["Переспросов", pct(s.clarify_rate)], ["Передач оператору", pct(s.handoff_rate)],
-    ["Роутер p50", ms(s.router_ms_p50)], ["Роутер p95", ms(s.router_ms_p95)], ["Неуверенных", s.low_confidence],
+    ["Роутер p50", ms(s.router_ms_p50)], ["Роутер p95", ms(s.router_ms_p95)], ["До звука p50", ms(s.end_to_audio_p50)], ["Неуверенных", s.low_confidence],
   ];
   document.getElementById("kpis").innerHTML = kpis
     .map(([l, v]) => `<div class="card kpi"><div class="v">${v}</div><div class="l">${l}</div></div>`).join("");

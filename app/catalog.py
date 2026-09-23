@@ -1,34 +1,14 @@
-"""Каталог сценариев, база знаний и mock backend.
-
-Формат файлов стартового кита заранее неизвестен, поэтому загрузчик терпимый:
-принимает список или {"scenarios": [...]}, id ищет в нескольких полях.
-Если data/scenarios.json нет — берётся data/sample/.
-"""
+"""Каталог сценариев, слоты, действия, база знаний и mock backend из стартового кита."""
 
 import json
-from pathlib import Path
 from typing import Any
 
 from .config import settings
 
-ID_KEYS = ("id", "scenario_id", "code", "name")
-TEXT_KEYS = ("title", "name", "purpose", "description", "назначение")
-
 
 def _read(name: str) -> Any:
-    for base in (settings.data_dir, settings.data_dir / "sample"):
-        path = base / name
-        if path.exists():
-            return json.loads(path.read_text(encoding="utf-8"))
-    return None
-
-
-def _as_list(raw: Any, key: str) -> list[dict]:
-    if raw is None:
-        return []
-    if isinstance(raw, dict):
-        raw = raw.get(key, list(raw.values()) if all(isinstance(v, dict) for v in raw.values()) else [])
-    return list(raw)
+    path = settings.data_dir / name
+    return json.loads(path.read_text(encoding="utf-8")) if path.exists() else {}
 
 
 class Catalog:
@@ -36,34 +16,50 @@ class Catalog:
         self.reload()
 
     def reload(self) -> None:
-        self.scenarios: dict[str, dict] = {}
-        for sc in _as_list(_read("scenarios.json"), "scenarios"):
-            sid = next((str(sc[k]) for k in ID_KEYS if sc.get(k)), None)
-            if sid:
-                self.scenarios[sid] = sc
-        self.knowledge_base = _read("knowledge_base.json") or {}
-        self.mock_backend = _read("mock_backend.json") or {}
+        raw = _read("scenarios.json")
+        self.meta: dict = raw.get("meta", {})
+        self.scenarios: dict[str, dict] = {s["scenario_id"]: s for s in raw.get("scenarios", [])}
+        self.system_intents: dict[str, dict] = {s["id"]: s for s in raw.get("system_intents", [])}
+        self.slots: dict[str, dict] = {s["name"]: s for s in _read("slots.json").get("slots", [])}
+        self.actions: dict = _read("actions.json")
+        self.knowledge_base: dict = _read("knowledge_base.json")
+        self.mock_backend: dict = _read("mock_backend.json")
+
+    @property
+    def as_of_date(self) -> str:
+        return self.meta.get("as_of_date", "2026-10-01")
+
+    def known(self, sid: str | None) -> bool:
+        return bool(sid) and (sid in self.scenarios or sid in self.system_intents)
 
     def title(self, sid: str) -> str:
-        sc = self.scenarios.get(sid, {})
-        return next((str(sc[k]) for k in ("title", "name") if sc.get(k)), sid)
+        return self.scenarios.get(sid, {}).get("name", sid)
 
-    def card(self, sid: str) -> str:
-        """Компактное описание сценария для промпта роутера."""
+    def priority(self, sid: str) -> str:
+        return self.scenarios.get(sid, {}).get("priority", "normal")
+
+    def card(self, sid: str, n_examples: int = 2) -> str:
+        """Компактная карточка сценария для промпта роутера."""
         sc = self.scenarios[sid]
-        fields = {k: v for k, v in sc.items() if k not in ID_KEYS and k not in ("responses", "response_examples")}
-        return f"### {sid}\n" + json.dumps(fields, ensure_ascii=False)
+        lines = [f"{sid} [{sc['domain']}/{sc['category']}, {sc['priority']}] {sc['name']}: {sc['description']}"]
+        for rule in sc.get("not_this_if", []):
+            lines.append(f"  - НЕ он, если {rule['condition']} → {rule['use_instead']}")
+        ex = sc.get("examples", {})
+        samples = ex.get("ru", [])[:n_examples] + ex.get("kk", [])[:n_examples]
+        if samples:
+            lines.append("  примеры: " + " | ".join(samples))
+        return "\n".join(lines)
+
+    def system_cards(self) -> str:
+        return "\n".join(f"{sid}: {s['description']}" for sid, s in self.system_intents.items())
 
     def embed_text(self, sid: str) -> str:
-        sc = self.scenarios[sid]
-        return json.dumps({k: v for k, v in sc.items() if k not in ("responses", "response_examples")}, ensure_ascii=False)
-
-    def is_irreversible(self, sid: str) -> bool:
-        return bool(self.scenarios.get(sid, {}).get("irreversible"))
+        return self.card(sid, n_examples=10)
 
     def save(self, scenarios: list[dict]) -> None:
-        path: Path = settings.data_dir / "scenarios.json"
-        path.write_text(json.dumps(scenarios, ensure_ascii=False, indent=2), encoding="utf-8")
+        raw = _read("scenarios.json")
+        raw["scenarios"] = scenarios
+        (settings.data_dir / "scenarios.json").write_text(json.dumps(raw, ensure_ascii=False, indent=2), encoding="utf-8")
         self.reload()
 
 

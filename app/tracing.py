@@ -62,24 +62,32 @@ def _pct(values: list[float], p: float) -> float | None:
     return values[min(len(values) - 1, int(len(values) * p))]
 
 
+def _conf(t: dict) -> float:
+    sc = t["decision"].get("scenarios") or []
+    return sc[0].get("confidence", 0.0) if sc else 0.0
+
+
 def stats() -> dict:
     traces = recent(1000)
     n = len(traces) or 1
     actions = [t["decision"]["action"] for t in traces]
-    router_ms = [t["stages_ms"].get("router_fast", 0) + t["stages_ms"].get("router_strong", 0) + t["stages_ms"].get("candidates", 0) for t in traces]
+    router_ms = [sum(t["stages_ms"].get(k, 0) for k in ("candidates", "router_fast", "router_strong", "policy")) for t in traces]
+    total_ms = [t["stages_ms"]["end_to_audio"] for t in traces if "end_to_audio" in t["stages_ms"]]
     by_scenario: dict[str, int] = {}
     for t in traces:
-        sid = t["decision"].get("scenario_id") or t["decision"]["action"]
+        sc = t["decision"].get("scenarios") or []
+        sid = sc[0]["scenario_id"] if sc and t["decision"]["action"] == "route" else t["decision"]["action"]
         by_scenario[sid] = by_scenario.get(sid, 0) + 1
     return {
         "turns": len(traces),
         "clarify_rate": actions.count("clarify") / n,
         "handoff_rate": actions.count("handoff") / n,
-        "escalation_rate": sum("strong" in t["path"] and "fast" in t["path"] for t in traces) / n,
+        "escalation_rate": sum(t["path"] == "fast->strong" for t in traces) / n,
         "fast_only_rate": sum(t["path"] == "fast" for t in traces) / n,
         "router_ms_p50": _pct(router_ms, 0.5),
         "router_ms_p95": _pct(router_ms, 0.95),
-        "low_confidence": sum(t["decision"]["confidence"] < settings.fast_confidence_threshold for t in traces),
+        "end_to_audio_p50": _pct(total_ms, 0.5),
+        "low_confidence": sum(_conf(t) < settings.route_threshold for t in traces),
         "by_scenario": dict(sorted(by_scenario.items(), key=lambda kv: -kv[1])),
     }
 

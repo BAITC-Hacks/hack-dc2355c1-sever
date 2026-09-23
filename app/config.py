@@ -24,9 +24,11 @@ class Settings(BaseSettings):
     stt_provider: str = "elevenlabs"
     tts_provider: str = "elevenlabs"
 
-    fast_confidence_threshold: float = 0.8
-    clarify_threshold: float = 0.45
-    top_k_candidates: int = 8
+    route_threshold: float = 0.75  # ≥ → запуск сценария
+    clarify_threshold: float = 0.45  # ниже → неуверенность; два раза подряд → оператор
+    fast_confidence_threshold: float = 0.85  # ниже → эскалация с быстрой модели на сильную
+    use_fast_path: bool = True
+    top_k_candidates: int = 0  # 0 = весь каталог в промпте; >0 = сужение эмбеддингами
     history_turns: int = 6
 
     data_dir: Path = ROOT / "data"
