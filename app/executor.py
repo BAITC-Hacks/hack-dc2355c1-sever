@@ -10,6 +10,7 @@
 - суммы/номера считает backend, LLM их только озвучивает.
 """
 
+import asyncio
 import json
 import re
 from collections.abc import Awaitable, Callable
@@ -28,7 +29,7 @@ RULES = """Ты — голосовой оператор контакт-цент�
 Ты ведёшь сценарий, который уже выбран. Отвечай на языке: {lang_name}.
 
 Правила общения:
-- 1–2 коротких предложения. Только один вопрос за раз. Это голос — никаких списков, markdown и эмодзи.
+- Строго 1–2 коротких предложения (до 35 слов) на весь ответ. Только один вопрос за раз. Это голос — никаких списков, переносов строк, markdown и эмодзи.
 - Сначала покажи понимание, затем действуй. В страховых случаях и жалобах — эмпатия; в срочных — спокойно и быстро, сначала безопасность.
 - Числа и суммы произноси словами («тридцать восемь тысяч тенге», «отыз сегіз мың теңге»), даты — словами («четырнадцатого февраля»).
 - При повторе персональных данных маскируй их: почта r***@mail.example, телефон +7 7** *** ** 07.
@@ -38,6 +39,7 @@ RULES = """Ты — голосовой оператор контакт-цент�
 Как вести сценарий:
 - Если сценарий требует идентификации, а клиент не найден — спроси телефон (или ИИН/номер полиса) и вызови find_client.
 - Клиент идентифицирован (в том числе только что, в этой реплике) → сразу, в этом же ответе, находи его данные: get_policies(client_id), get_claim(client_id=...), check_payment(client_id) и т.п. НЕ спрашивай номер полиса или заявления, если его можно найти. Если полис по теме один — бери его.
+- Город, почту, телефон бери из профиля клиента, если клиент не назвал другие — не спрашивай.
 - Сначала используй всё, что уже известно или выводится из разговора: «три дня назад», «үш күн бұрын» → дата относительно сегодня; «легковая» → vehicle_type=car; «в Алматы» → region=almaty; госномер 01/02 → регион. Спрашивай только то, чего действительно нет.
 - Недостающие обязательные слоты спрашивай по одному (один вопрос в реплике), формулировками из подсказок ниже.
 - Необратимые действия: когда все данные собраны — В ЭТОЙ ЖЕ реплике вызови действие с mode="preview", озвучь результат preview (суммы, номера, даты) и попроси явное «да». Никогда не проси подтверждение без preview.
@@ -175,13 +177,20 @@ async def _stream_round(messages: list[dict], tools: list[dict], on_text: OnText
 async def run(
     sid: str, lang: str, user_text: str, history: list[dict], client: dict | None,
     slots: dict, queue: list[str], previews: dict[str, dict], turn_slots: dict | None = None,
-    on_text: OnText = None,
+    on_text: OnText = None, extra: list[str] | None = None, gate: "asyncio.Future[bool] | None" = None,
 ) -> ExecResult:
-    """on_text получает готовые предложения ответа по мере генерации — их сразу озвучивает TTS."""
-    sc = catalog.scenarios[sid]
-    names = list(dict.fromkeys(sc.get("actions", []) + SERVICE_ACTIONS))
+    """on_text получает готовые предложения ответа по мере генерации — их сразу озвучивает TTS.
+    extra — вторые темы этой же реплики: их действия тоже доступны, ответ покрывает и их.
+    gate — при параллельном запуске с роутером: действия, меняющие данные, ждут его подтверждения."""
+    extra = [e for e in extra or [] if e in catalog.scenarios and e != sid]
+    names = list(dict.fromkeys(
+        [a for x in [sid, *extra] for a in catalog.scenarios[x].get("actions", [])] + SERVICE_ACTIONS))
     tools = [_tool(n) for n in names] + [COMPLETE_TOOL]
-    messages: list[dict] = [{"role": "system", "content": _system(sid, lang, client, slots, queue, previews, turn_slots or {})}]
+    system = _system(sid, lang, client, slots, queue, previews, turn_slots or {})
+    if extra:
+        system += "\n\n## В этой же реплике клиент спросил ещё о\n" + ", ".join(
+            f"{e} ({catalog.title(e)})" for e in extra) + "\nОтветь и на это одной фразой, если хватает данных; иначе скажи, что вернёшься к этому."
+    messages: list[dict] = [{"role": "system", "content": system}]
     messages += history
     messages.append({"role": "user", "content": user_text})
 
@@ -205,8 +214,12 @@ async def run(
                 args = json.loads(tc["function"]["arguments"] or "{}")
             except json.JSONDecodeError:
                 args = {}
+            if gate is not None and name not in backend.READ_ONLY and not (await gate):
+                raise asyncio.CancelledError  # роутер решил иначе — ничего не меняем
             out = _execute(name, args, names, previews, new_previews, result)
             messages.append({"role": "tool", "tool_call_id": tc["id"], "content": json.dumps(out, ensure_ascii=False, default=str)})
+        if spoken and all(c["function"]["name"] == "complete_scenario" for c in calls):
+            break  # ответ уже прозвучал, сценарий закрыт — ещё один раунд дал бы лишнюю «прощальную» фразу
     else:
         fallback = "Минуту, передаю вопрос специалисту." if lang == "ru" else "Бір минут, сұрағыңызды маманға беремін."
         spoken.append(fallback)

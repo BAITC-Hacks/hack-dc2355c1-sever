@@ -466,6 +466,10 @@ def _full_months_between(start: date, end: date) -> int:
 
 backend = Backend()
 IRREVERSIBLE = {a["name"] for a in catalog.actions.get("actions", []) if a.get("irreversible")}
+# Только чтение: их можно вызывать до того, как роутер подтвердил сценарий (параллельный запуск).
+READ_ONLY = {"find_client", "get_policies", "get_policy", "get_bm_class", "calc_ogpo_price", "calc_casco_price",
+             "calc_travel_price", "calc_property_price", "calc_accident_price", "get_claim", "check_coverage",
+             "list_clinics", "check_payment", "get_offices", "kb_lookup", "complete_scenario"}
 
 
 def call(name: str, args: dict, mode: str = "execute") -> dict:
