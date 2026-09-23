@@ -25,6 +25,7 @@ sessions: dict[str, Session] = {}
 @asynccontextmanager
 async def lifespan(_: FastAPI):
     await candidates.warmup()
+    await tts.warmup()
     yield
 
 
