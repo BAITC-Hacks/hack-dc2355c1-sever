@@ -1,6 +1,5 @@
 """Синтез речи: ElevenLabs (стрим), fallback OpenAI TTS, иначе — браузерный speechSynthesis."""
 
-import re
 from collections.abc import AsyncIterator
 
 import httpx
@@ -25,37 +24,17 @@ async def _elevenlabs(text: str) -> AsyncIterator[bytes]:
 
 
 async def _openai(text: str) -> AsyncIterator[bytes]:
-    # Стрим: первые байты уходят клиенту, не дожидаясь всего файла.
-    async with llm._client("openai").audio.speech.with_streaming_response.create(
-        model="tts-1", voice="alloy", input=text, response_format="mp3"
-    ) as resp:
-        async for chunk in resp.iter_bytes():
-            yield chunk
-
-
-async def warmup() -> None:
-    """Первый запрос к голосу ElevenLabs бывает холодным (8–10 с) — греем при старте, а не на первой реплике жюри."""
-    stream = synthesize("Сәлеметсіз бе.")
-    if stream is None:
-        return
-    try:
-        async for _ in stream:
-            pass
-    except Exception:
-        pass
+    resp = await llm._client("openai").audio.speech.create(model="tts-1", voice="alloy", input=text, response_format="mp3")
+    yield resp.content
 
 
 _disabled: set[str] = set()  # у ключа нет прав на TTS (401/403) — до перезапуска не пробуем
 
 
-KAZAKH_LETTERS = re.compile(r"[әіңғүұқөһ]", re.I)
-
-
-def provider(text: str = "") -> str:
-    wanted = settings.tts_provider_kk if settings.tts_provider_kk and KAZAKH_LETTERS.search(text) else settings.tts_provider
-    if wanted == "elevenlabs" and settings.elevenlabs_api_key and "elevenlabs" not in _disabled:
+def provider() -> str:
+    if settings.tts_provider == "elevenlabs" and settings.elevenlabs_api_key and "elevenlabs" not in _disabled:
         return "elevenlabs"
-    if wanted in ("elevenlabs", "openai") and settings.openai_api_key:
+    if settings.tts_provider in ("elevenlabs", "openai") and settings.openai_api_key:
         return "openai"
     return "browser"
 
@@ -81,7 +60,7 @@ async def _with_fallback(text: str) -> AsyncIterator[bytes]:
 
 
 def synthesize(text: str) -> AsyncIterator[bytes] | None:
-    name = provider(text)
+    name = provider()
     if name == "elevenlabs":
         return _with_fallback(text)
     if name == "openai":
