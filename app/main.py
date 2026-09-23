@@ -5,10 +5,10 @@ import json
 from contextlib import asynccontextmanager
 from pathlib import Path
 
-from fastapi import FastAPI, WebSocket, WebSocketDisconnect
+from fastapi import FastAPI, HTTPException, WebSocket, WebSocketDisconnect
 from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 from . import tracing
 from .catalog import catalog
@@ -75,7 +75,7 @@ def stats():
 
 
 class ChatIn(BaseModel):
-    text: str
+    text: str = Field(min_length=1, pattern=r"\S")
     session_id: str | None = None
 
 
@@ -91,6 +91,8 @@ async def chat(body: ChatIn):
 
 @app.get("/api/sessions/{session_id}/handoff")
 def handoff(session_id: str):
+    if session_id not in sessions:
+        raise HTTPException(404, f"Сессия {session_id} не найдена")
     return sessions[session_id].handoff_summary()
 
 
@@ -107,35 +109,49 @@ async def ws_session(ws: WebSocket):
             msg = await ws.receive()
             if msg.get("type") == "websocket.disconnect":
                 break
-            sw = Stopwatch()
-            if msg.get("bytes"):
-                try:
-                    with sw.stage("stt"):
-                        text, provider = await stt.transcribe(msg["bytes"])
-                except Exception as e:
-                    await ws.send_json({"type": "error", "message": str(e)})
-                    continue
-                sw.note("stt_provider", provider)
-                await ws.send_json({"type": "transcript", "text": text})
-                if not text:
-                    continue
-            else:
-                data = json.loads(msg.get("text") or "{}")
-                text = (data.get("text") or "").strip()
-                if not text:
-                    continue
-
-            speaker = _Speaker(ws, sw)
-            trace = await session.handle_text(text, sw, on_text=speaker.say)
-            await ws.send_json({"type": "trace", "trace": trace.model_dump()})
-            if not speaker.used:  # системная реплика без генерации — озвучиваем целиком
-                await speaker.say(trace.bot_text)
-            await speaker.close()
-
-            trace = await session.finish(trace, sw)
-            await ws.send_json({"type": "final", "trace": trace.model_dump()})
+            try:
+                await _session_turn(ws, session, msg)
+            except (WebSocketDisconnect, RuntimeError):
+                raise
+            except Exception as e:  # сбой одной реплики (API недоступен и т.п.) не должен рвать разговор
+                await ws.send_json({"type": "error", "message": f"Не удалось обработать реплику: {e}"})
     except WebSocketDisconnect:
         pass
+
+
+async def _session_turn(ws: WebSocket, session: Session, msg: dict) -> None:
+    """Одна реплика клиента: STT (если аудио) → роутер → исполнитель → озвучка → трассировка."""
+    sw = Stopwatch()
+    if msg.get("bytes"):
+        try:
+            with sw.stage("stt"):
+                text, provider = await stt.transcribe(msg["bytes"])
+        except Exception as e:
+            await ws.send_json({"type": "error", "message": str(e)})
+            return
+        sw.note("stt_provider", provider)
+        await ws.send_json({"type": "transcript", "text": text})
+        if not text:
+            return
+    else:
+        try:
+            data = json.loads(msg.get("text") or "{}")
+        except json.JSONDecodeError:
+            await ws.send_json({"type": "error", "message": 'Ожидается JSON {"type":"text","text":"..."} или бинарное аудио'})
+            return
+        text = (data.get("text") or "").strip() if isinstance(data, dict) else ""
+        if not text:
+            return
+
+    speaker = _Speaker(ws, sw)
+    trace = await session.handle_text(text, sw, on_text=speaker.say)
+    await ws.send_json({"type": "trace", "trace": trace.model_dump()})
+    if not speaker.used:  # системная реплика без генерации — озвучиваем целиком
+        await speaker.say(trace.bot_text)
+    await speaker.close()
+
+    trace = await session.finish(trace, sw)
+    await ws.send_json({"type": "final", "trace": trace.model_dump()})
 
 
 class _Speaker:

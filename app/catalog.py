@@ -63,7 +63,7 @@ class Catalog:
     def save(self, scenarios: list[dict]) -> None:
         raw = _read("scenarios.json")
         raw["scenarios"] = scenarios
-        (settings.data_dir / "scenarios.json").write_text(json.dumps(raw, ensure_ascii=False, indent=2), encoding="utf-8")
+        (settings.data_dir / "scenarios.json").write_text(json.dumps(raw, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
         self.reload()
 
 
