@@ -3,75 +3,26 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <meta name="theme-color" content="#0c0e14">
-  <title>Saqta · Voice</title>
+  <title>Voice Router</title>
   <link rel="stylesheet" href="/static/css/app.css">
 </head>
-<body class="client-page">
-  <header class="app-header">
-    <a class="brand" href="/" aria-label="Saqta Voice"><span class="brand-mark"><svg class="icon " viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3 4 7v5c0 5 8 9 8 9s8-4 8-9V7l-8-4Z"/><path d="m8 12 3 3 5-6"/></svg></span><span>saqta<span class="brand-divider">/</span><span class="brand-product">voice</span></span></a>
-    <nav class="main-nav" aria-label="Навигация" data-i18n="Навигация" data-i18n-attr="aria-label">
-      <a href="/" class="nav-link active" aria-current="page" data-i18n="Разговор">Разговор</a>
-      <a href="/supervisor" class="nav-link" data-i18n="Супервизор">Супервизор</a>
-    </nav>
-    <div class="header-tools">
-      <div class="locale-switch" role="group" data-i18n="Язык интерфейса" data-i18n-attr="aria-label">
-        <button type="button" data-ui-lang="ru" lang="ru" aria-pressed="true">RU</button>
-        <button type="button" data-ui-lang="kk" lang="kk" aria-pressed="false">ҚАЗ</button>
-      </div>
-      <button class="icon-button inspector-toggle" id="toggle-inspector" aria-pressed="true" aria-controls="inspector" data-i18n="Показывать работу агента" data-i18n-attr="aria-label"><svg class="icon " viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="4" width="18" height="16" rx="3"/><path d="M15 4v16"/></svg></button>
-    </div>
+<body>
+  <header>
+    <h1>Voice Router · контакт-центр</h1>
+    <a href="/supervisor" target="_blank">Панель супервизора →</a>
   </header>
-  <main class="workspace">
-    <div class="conversation-column">
-      <section class="voice-stage" id="conversation-state" data-state="connecting">
-        <div class="stage-topline"><span class="eyebrow"><span class="live-dot"></span><span data-i18n="Голосовой помощник">Голосовой помощник</span></span><span class="language" id="language" aria-live="polite">RU / KZ</span></div>
-        <div class="orb-wrap" aria-hidden="true"><div class="orb-fallback"></div><canvas id="voice-orb"></canvas></div>
-        <div class="voice-copy">
-          <p class="overline" data-i18n="Всё начинается с разговора.">Всё начинается с разговора.</p>
-          <h1 id="state-label" aria-live="polite">Расскажите, чем помочь</h1>
-          <p id="state-hint">Говорите свободно — на русском, казахском или смешивайте оба языка.</p>
-        </div>
-        <button class="mic-button" id="mic" type="button" aria-pressed="false" disabled><svg class="icon " viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="9" y="2" width="6" height="12" rx="3"/><path d="M5 10v2a7 7 0 0 0 14 0v-2M12 19v3m-4 0h8"/></svg><span id="mic-label" data-i18n="Нажмите и говорите">Нажмите и говорите</span><span class="mic-stop" aria-hidden="true"></span></button>
-        <div class="state-steps" aria-label="Этапы разговора" data-i18n="Этапы разговора" data-i18n-attr="aria-label">
-          <span data-step="listening"><i></i><span data-i18n="Слушаю">Слушаю</span></span>
-          <span data-step="recognizing"><i></i><span data-i18n="Распознаю">Распознаю</span></span>
-          <span data-step="thinking"><i></i><span data-i18n="Думаю">Думаю</span></span>
-          <span data-step="speaking"><i></i><span data-i18n="Говорю">Говорю</span></span>
-        </div>
-        <div class="suggestions" id="suggestions">
-          <button type="button" data-example="auto" disabled><svg class="icon " viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m5 7 2-3h10l2 3m-14 0-2 5v6h3v-3h12v3h3v-6l-2-5H5Z"/><path d="M6 11h2m8 0h2"/></svg><span data-i18n="Автострахование">Автострахование</span><span aria-hidden="true">↗</span></button>
-          <button type="button" data-example="payment" disabled><svg class="icon " viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="5" width="18" height="14" rx="3"/><path d="M3 10h18M7 15h3"/></svg><span data-i18n="Проверить платёж">Проверить платёж</span><span aria-hidden="true">↗</span></button>
-          <button type="button" data-example="claim" disabled><svg class="icon " viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3 4 7v5c0 5 8 9 8 9s8-4 8-9V7l-8-4Z"/><path d="m8 12 3 3 5-6"/></svg><span data-i18n="Страховой случай">Страховой случай</span><span aria-hidden="true">↗</span></button>
-        </div>
-      </section>
-      <section class="conversation-panel">
-        <div class="panel-heading"><h2 data-i18n="Ваш разговор">Ваш разговор</h2><span class="subtle" data-i18n="Русский · Қазақша · Смешанная речь">Русский · Қазақша · Смешанная речь</span></div>
-        <div class="chat" id="chat" role="log" aria-live="polite" aria-relevant="additions text" data-i18n="Ваш разговор" data-i18n-attr="aria-label">
-          <div class="chat-empty" id="chat-empty"><span class="empty-message-icon"><svg class="icon " viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 11.5a8.5 8.5 0 0 1-8.5 8.5H4l-2 2v-9.5A8.5 8.5 0 0 1 10.5 4H13a8 8 0 0 1 8 7.5Z"/><path d="M7 10h9M7 14h6"/></svg></span><div><p data-i18n="Здесь появится ваш разговор">Здесь появится ваш разговор</p><span data-i18n="Начните голосом или напишите сообщение ниже.">Начните голосом или напишите сообщение ниже.</span></div></div>
-        </div>
-        <div class="composer">
-          <label class="sr-only" for="text" data-i18n="Сообщение помощнику">Сообщение помощнику</label>
-          <input id="text" data-i18n="Напишите сообщение…" data-i18n-attr="placeholder" placeholder="Напишите сообщение…" autocomplete="off" enterkeyhint="send" disabled>
-          <button id="send" type="button" class="send-button" data-i18n="Отправить" data-i18n-attr="aria-label" disabled><svg class="icon " viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 19V5m-6 6 6-6 6 6"/></svg></button>
-        </div>
-        <div class="conversation-footer"><span id="status" class="status" role="status"></span><button id="play-audio" class="text-button" type="button" hidden data-i18n="Воспроизвести ответ">Воспроизвести ответ</button></div>
-      </section>
-      <footer class="workspace-footer"><span>SAQTA INSURANCE</span><span>HackAlem AI <span class="footer-dot">·</span> Team Sever</span></footer>
+  <main>
+    <div class="card chat" id="chat">
+      <div class="msg bot">Здравствуйте! Нажмите «Говорить» и расскажите, чем помочь. Можно по-русски или по-казахски.</div>
     </div>
-    <aside class="inspector" id="inspector" data-i18n="Работа агента" data-i18n-attr="aria-label">
-      <div class="inspector-heading"><div class="inspector-title"><svg class="icon " viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m8 4-6 8 6 8m8-16 6 8-6 8M14 3l-4 18"/></svg><h2 data-i18n="Работа агента">Работа агента</h2></div><span class="live-tag"><span class="live-dot"></span>LIVE</span></div>
-      <p class="inspector-subtitle" data-i18n="Ответы и действия в реальном времени">Ответы и действия в реальном времени</p>
-      <div class="trace-selection" id="trace-selection" hidden><label for="trace-turn" data-i18n="Реплика">Реплика</label><select id="trace-turn"></select></div>
-      <div id="trace-content" class="trace-content">
-        <div class="inspector-empty"><div class="empty-orbit"><svg class="icon " viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m12 3 2.5 6.5L21 12l-6.5 2.5L12 21l-2.5-6.5L3 12l6.5-2.5L12 3Z"/></svg></div><h3 data-i18n="Каждое решение — на виду">Каждое решение — на виду</h3><p data-i18n="После первой реплики здесь появятся выбранный сценарий, действия и время ответа.">После первой реплики здесь появятся выбранный сценарий, действия и время ответа.</p><div class="preview-route" aria-hidden="true"><span>01</span><i></i><span>02</span><i></i><span>03</span></div><div class="preview-labels"><span data-i18n="Сценарии">Сценарии</span><span data-i18n="Действия">Действия</span><span data-i18n="Ответ">Ответ</span></div></div>
-      </div>
-      <div class="inspector-footer"><span class="live-dot muted"></span><span id="session-label" data-i18n="Ожидание первого запроса">Ожидание первого запроса</span></div>
-    </aside>
+    <div class="controls">
+      <button class="mic" id="mic">🎙 Говорить</button>
+      <input id="text" placeholder="…или напишите текстом (резервный канал)" autocomplete="off">
+      <button id="send">Отправить</button>
+    </div>
+    <div class="status" id="status"></div>
   </main>
-  <script src="/static/js/i18n.js"></script>
   <script src="/static/js/common.js"></script>
-  <script src="/static/js/orb.js"></script>
   <script src="/static/js/client.js"></script>
 </body>
 </html>

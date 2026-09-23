@@ -3,57 +3,25 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <meta name="theme-color" content="#0c0e14">
-  <title>Saqta · Supervisor</title>
+  <title>Voice Router · супервизор</title>
   <link rel="stylesheet" href="/static/css/app.css">
 </head>
-<body class="supervisor-page">
-  <header class="app-header">
-    <a class="brand" href="/" aria-label="Saqta Voice"><span class="brand-mark"><svg class="icon " viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3 4 7v5c0 5 8 9 8 9s8-4 8-9V7l-8-4Z"/><path d="m8 12 3 3 5-6"/></svg></span><span>saqta<span class="brand-divider">/</span><span class="brand-product">voice</span></span></a>
-    <nav class="main-nav" aria-label="Навигация" data-i18n="Навигация" data-i18n-attr="aria-label"><a href="/" class="nav-link" data-i18n="Разговор">Разговор</a><a href="/supervisor" class="nav-link active" aria-current="page" data-i18n="Супервизор">Супервизор</a></nav>
-    <div class="header-tools"><div class="locale-switch" role="group" data-i18n="Язык интерфейса" data-i18n-attr="aria-label"><button type="button" data-ui-lang="ru" lang="ru" aria-pressed="true">RU</button><button type="button" data-ui-lang="kk" lang="kk" aria-pressed="false">ҚАЗ</button></div></div>
+<body>
+  <header>
+    <h1>Панель супервизора</h1>
+    <a href="/">← Экран клиента</a>
   </header>
-  <main class="supervisor-main">
-    <div class="page-intro"><p class="overline" data-i18n="Панель супервизора">Панель супервизора</p><h1 data-i18n="Все разговоры под контролем">Все разговоры под контролем</h1><p data-i18n="Сессии, решения и действия помощника в одном месте.">Сессии, решения и действия помощника в одном месте.</p></div>
+  <main style="max-width: 1200px">
     <div class="grid" id="kpis"></div>
-    <p class="subtle" data-i18n="Статистика по последним 1000 репликам. Фильтры применяются к таблице.">Статистика по последним 1000 репликам. Фильтры применяются к таблице.</p>
-    <section class="card">
-      <div class="panel-heading"><h2 data-i18n="Недавние реплики">Недавние реплики</h2><span id="feed-status" role="status" class="subtle"></span></div>
-      <div class="supervisor-filters">
-        <label class="sr-only" for="session-filter" data-i18n="Сессия">Сессия</label><select id="session-filter"><option value="" data-i18n="Все сессии">Все сессии</option></select>
-        <label><input type="checkbox" id="uncertain-filter"><span data-i18n="Где сомневался">Где сомневался</span></label>
-        <button id="refresh" type="button" data-i18n="Обновить">Обновить</button>
-      </div>
-      <p class="subtle" id="load-status" role="status"></p>
-      <div class="table-scroll"><table>
-        <thead><tr><th data-i18n="Время">Время</th><th data-i18n="Сессия">Сессия</th><th data-i18n="Реплика клиента">Реплика клиента</th><th data-i18n="Решение роутера">Решение роутера</th><th data-i18n="Ответ">Ответ</th></tr></thead>
+    <div class="card" style="margin-bottom: 14px">
+      <table>
+        <thead><tr><th>Время</th><th>Сессия</th><th>Реплика клиента</th><th>Решение роутера</th><th>Ответ</th></tr></thead>
         <tbody id="rows"></tbody>
-      </table></div>
-      <p class="subtle" data-i18n="Показаны последние 200 реплик и новые события.">Показаны последние 200 реплик и новые события.</p>
-    </section>
-    <section class="card scenario-stats"><h2 data-i18n="Сценарии">Сценарии</h2><table id="byScenario"></table></section>
-    <details class="card catalog-editor" id="catalog-editor">
-      <summary data-i18n="Редактор каталога">Редактор каталога</summary>
-      <p class="subtle" data-i18n="Меняйте тексты сценария. Действия, слоты и подтверждения сохраняются.">Меняйте тексты сценария. Действия, слоты и подтверждения сохраняются.</p>
-      <p class="trace-notice" data-i18n="После изменения названия или описания перезапустите сервер, чтобы роутер использовал новые тексты.">После изменения названия или описания перезапустите сервер, чтобы роутер использовал новые тексты.</p>
-      <div class="catalog-toolbar"><label for="catalog-scenario" data-i18n="Сценарий">Сценарий</label><select id="catalog-scenario" disabled></select><button id="catalog-load" type="button" data-i18n="Загрузить каталог">Загрузить каталог</button></div>
-      <form id="catalog-form">
-        <fieldset id="catalog-fields" disabled>
-          <label for="catalog-name" data-i18n="Название">Название</label><input id="catalog-name" name="name" required maxlength="200">
-          <label for="catalog-description" data-i18n="Описание для роутера">Описание для роутера</label><textarea id="catalog-description" name="description" rows="3" required maxlength="6000"></textarea>
-          <div class="catalog-language-fields">
-            <div><label for="catalog-ru" data-i18n="Начальный ответ · Русский">Начальный ответ · Русский</label><textarea id="catalog-ru" name="ru" lang="ru" rows="3" maxlength="3000"></textarea></div>
-            <div><label for="catalog-kk" data-i18n="Начальный ответ · Қазақша">Начальный ответ · Қазақша</label><textarea id="catalog-kk" name="kk" lang="kk" rows="3" maxlength="3000"></textarea></div>
-          </div>
-          <div class="catalog-toolbar"><button id="catalog-save" type="submit" disabled data-i18n="Сохранить сценарий">Сохранить сценарий</button><button id="catalog-reset" type="button" disabled data-i18n="Отменить правки">Отменить правки</button></div>
-        </fieldset>
-      </form>
-      <p id="catalog-status" class="subtle" role="status" aria-live="polite"></p>
-    </details>
+      </table>
+    </div>
+    <div class="card"><b>Сценарии</b><table id="byScenario"></table></div>
   </main>
-  <script src="/static/js/i18n.js"></script>
   <script src="/static/js/common.js"></script>
   <script src="/static/js/supervisor.js"></script>
-  <script src="/static/js/catalog-editor.js"></script>
 </body>
 </html>
