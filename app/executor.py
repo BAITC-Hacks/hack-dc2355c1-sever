@@ -219,8 +219,8 @@ async def run(
                 raise asyncio.CancelledError  # роутер решил иначе — ничего не меняем
             out = _execute(name, args, names, previews, new_previews, result)
             messages.append({"role": "tool", "tool_call_id": tc["id"], "content": json.dumps(out, ensure_ascii=False, default=str)})
-        if spoken and all(c["function"]["name"] == "complete_scenario" for c in calls):
-            break  # ответ уже прозвучал, сценарий закрыт — ещё один раунд дал бы лишнюю «прощальную» фразу
+        if any(x != FILLER[lang] for x in spoken) and all(c["function"]["name"] == "complete_scenario" for c in calls):
+            break  # ответ по существу уже прозвучал (заполнитель не в счёт), сценарий закрыт — лишний раунд не нужен
     else:
         fallback = "Минуту, передаю вопрос специалисту." if lang == "ru" else "Бір минут, сұрағыңызды маманға беремін."
         spoken.append(fallback)

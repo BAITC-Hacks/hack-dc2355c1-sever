@@ -3,6 +3,7 @@ import { ArrowUp, ArrowUpRight, AudioLines, Check, ChevronRight, CircleHelp, Glo
 import { VoicePoweredOrb } from "@/components/ui/voice-powered-orb";
 import { Button } from "@/components/ui/button";
 import { useConversation } from "./hooks/use-conversation";
+import { TraceCard } from "./TraceCard";
 
 export function Header({ supervisor = false }: { supervisor?: boolean }) {
   return <header className="site-header">
@@ -13,9 +14,9 @@ export function Header({ supervisor = false }: { supervisor?: boolean }) {
 }
 
 const suggestions = [
-  { icon: CircleHelp, label: "Узнать баланс", text: "Как узнать мой баланс?" },
-  { icon: Sparkles, label: "Подобрать тариф", text: "Помогите подобрать тариф" },
-  { icon: Globe2, label: "Қазақша сөйлесейік", text: "Сәлеметсіз бе! Қазақша сөйлесейік." },
+  { icon: CircleHelp, label: "Стоимость ОГПО", text: "Сколько стоит обязательная страховка на машину в Алматы?" },
+  { icon: Sparkles, label: "Оплатил, а полиса нет", text: "Я вчера оплатил полис, деньги списались, а полиса нет" },
+  { icon: Globe2, label: "Полисімді тексеру", text: "Сәлеметсіз бе, полисім әлі жарамды ма?" },
 ];
 
 export function App() {
@@ -25,6 +26,7 @@ export function App() {
   const end = useRef<HTMLDivElement>(null);
   const textarea = useRef<HTMLTextAreaElement>(null);
   const hasMessages = c.messages.length > 0;
+  const lastAssistantId = [...c.messages].reverse().find(m => m.role === "assistant" && m.trace)?.id;
   const disabled = !c.connected || c.busy || c.recording || c.requestingMic;
   const status = c.requestingMic ? "Разрешите доступ к микрофону" : c.recording ? voiceDetected ? "Слышу вас" : "Слушаю вас" : c.busy ? "Готовлю ответ" : "Готов к разговору";
   useEffect(() => { if (hasMessages) end.current?.scrollIntoView({ behavior: "smooth", block: "nearest" }); }, [c.messages, c.busy, hasMessages]);
@@ -59,6 +61,7 @@ export function App() {
           <div className="message-meta">{message.role === "assistant" ? <><span className="message-avatar"><AudioLines size={13} /></span> Voice Router</> : <>Вы <span className="user-avatar">В</span></>}</div>
           <div className="message-content">{message.text}</div>
           {message.trace?.handoff_queue && <div className="handoff-note"><Check size={13} /> Обращение передано оператору</div>}
+          {message.role === "assistant" && message.trace && <TraceCard key={`${message.id}-${message.id === lastAssistantId}`} trace={message.trace} open={message.id === lastAssistantId} />}
         </article>)}
         {c.busy && <div className="thinking"><span /><span /><span /><span className="sr-only">Ассистент готовит ответ</span></div>}
         <div ref={end} />
