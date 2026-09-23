@@ -8,6 +8,7 @@ LLM ненадёжно переводит продиктованные числ�
 """
 
 import re
+from datetime import date, timedelta
 
 UNITS = {
     "ноль": 0, "нуль": 0, "один": 1, "одна": 1, "одну": 1, "два": 2, "две": 2, "три": 3, "четыре": 4, "пять": 5,
@@ -134,11 +135,35 @@ def spoken_to_digits(text: str) -> str:
     return "".join(pieces)
 
 
+# Относительные даты считает код: LLM путается («вчера» → «четырнадцатого сентября»).
+RELATIVE_DAYS = [
+    (r"\bпозавчера\b|\bалдыңғы\s+күні\b|\bбүргін\s*күні\b", -2),
+    (r"\bвчера\b|\bкеше\b", -1),
+    (r"\bсегодня\b|\bбүгін\b", 0),
+    (r"\bпослезавтра\b|\bбүрсігүні\b|\bбүрсі\s+күні\b", 2),
+    (r"\bзавтра\b|\bертең\b", 1),
+]
+DAYS_AGO = re.compile(r"\b(\d{1,2})\s*(?:дн\w*|день|күн)\s*(?:назад|бұрын)", re.I)
+
+
+def relative_dates(norm: str, today: date) -> dict[str, str]:
+    """Фраза из реплики → дата YYYY-MM-DD относительно «сегодня» кита."""
+    out: dict[str, str] = {}
+    low = norm.lower()
+    for rx, delta in RELATIVE_DAYS:
+        if m := re.search(rx, low):
+            out[m.group(0)] = (today + timedelta(days=delta)).isoformat()
+    for m in DAYS_AGO.finditer(low):
+        out[m.group(0)] = (today - timedelta(days=int(m.group(1)))).isoformat()
+    return out
+
+
 PHONE_RUN = re.compile(r"\+?\d[\d\s,.\-()]{8,}\d")
 
 
-def extract(text: str) -> dict:
-    """Возвращает нормализованный текст и найденные идентификаторы (телефон, ИИН, полис, госномер, заявление)."""
+def extract(text: str, today: date | None = None) -> dict:
+    """Возвращает нормализованный текст и найденные идентификаторы (телефон, ИИН, полис, госномер, заявление)
+    и относительные даты («вчера» → 2026-09-30)."""
     norm = spoken_to_digits(text)
     found: dict[str, str | list[str]] = {}
     for run in PHONE_RUN.findall(norm):
@@ -158,4 +183,6 @@ def extract(text: str) -> dict:
         found["claim_number"] = f"CL-{m.group(1)}"
     if m := re.search(r"\b(\d{3}\s?[A-ZА-Я]{2,3}\s?\d{2})\b", norm.upper()):
         found["vehicle_plate"] = re.sub(r"\s", "", m.group(1))
+    if today and (dates := relative_dates(norm, today)):
+        found["relative_dates"] = dates
     return {"text": norm, "ids": found}
