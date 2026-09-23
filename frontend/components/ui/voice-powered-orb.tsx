@@ -68,9 +68,9 @@ vec4 extractAlpha(vec3 c) {
   float a = max(max(c.r,c.g),c.b);
   return vec4(c/(a+1e-5),a);
 }
-const vec3 baseColor1 = vec3(0.611765,0.262745,0.996078);
-const vec3 baseColor2 = vec3(0.298039,0.760784,0.913725);
-const vec3 baseColor3 = vec3(0.062745,0.078431,0.600000);
+uniform vec3 baseColor1;
+uniform vec3 baseColor2;
+uniform vec3 baseColor3;
 const float innerRadius = 0.6;
 const float noiseScale = 0.65;
 float light1(float intensity,float attenuation,float dist) { return intensity/(1.0+dist*attenuation); }
@@ -179,9 +179,15 @@ export const VoicePoweredOrb: FC<VoicePoweredOrbProps> = (props) => {
       gl.clearColor(0, 0, 0, 0);
       host.appendChild(gl.canvas);
       geometry = new Triangle(gl);
+      // Цвета шара синхронизированы с CSS-токенами темы.
+      const palette = getComputedStyle(document.documentElement);
+      const themeColor = (token: string) => {
+        const hex = palette.getPropertyValue(token).trim().slice(1);
+        return new Vec3(...[0, 2, 4].map(i => parseInt(hex.slice(i, i + 2), 16) / 255) as [number, number, number]);
+      };
       program = new Program(gl, {
         vertex: vert, fragment: frag,
-        uniforms: { iTime: { value: 0 }, iResolution: { value: new Vec3(1, 1, 1) }, hue: { value: 0 }, hover: { value: 0 }, rot: { value: 0 }, hoverIntensity: { value: 0 } },
+        uniforms: { baseColor1: { value: themeColor("--brand") }, baseColor2: { value: themeColor("--brand-accent") }, baseColor3: { value: themeColor("--ink-strong") }, iTime: { value: 0 }, iResolution: { value: new Vec3(1, 1, 1) }, hue: { value: 0 }, hover: { value: 0 }, rot: { value: 0 }, hoverIntensity: { value: 0 } },
       });
       const mesh = new Mesh(gl, { geometry, program });
       const resize = () => {

@@ -1,0 +1,16 @@
+:root {
+  --brand: #00805F;
+  --brand-accent: #64F995;
+  --ink: #3D3D3D;
+  --ink-strong: #071222;
+  --surface: #FFFFFF;
+  --surface-alt: #F1F2F6;
+  --border: #D4D4D4;
+  --radius: 12px;
+  --status-neutral: #505966;
+  --status-neutral-bg: #EDF0F3;
+  --status-amber: #805000;
+  --status-amber-bg: #FFF0CC;
+  --status-red: #B42318;
+  --status-red-bg: #FEE4E2;
+}

@@ -1,41 +1,29 @@
 @import url("https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap");
 @import "tailwindcss";
+@import "./tokens.css";
 
-/* Палитра: тёмная база с лёгким синим оттенком, акценты — цвета шара (фиолетовый и бирюзовый из шейдера). */
 :root {
-  color-scheme: dark;
-  --bg: #0f1014;
-  --bg-soft: #14161c;
-  --card: #171a21;
-  --card-raised: #1d2029;
-  --line: #262a35;
-  --line-strong: #353a48;
-  --text: #eceef4;
-  --muted: #9097a8;
-  --faint: #636a7c;
-  --violet: #9c6bff;
-  --violet-soft: #2a2140;
-  --cyan: #4cc2e9;
-  --cyan-soft: #15303b;
-  --good: #5fd4a8;
-  --good-soft: #15302a;
-  --warn: #f0c070;
-  --warn-soft: #33291a;
-  --bad: #ff8f9c;
-  --bad-soft: #3a1f25;
-  --radius: 14px;
+  color-scheme: light;
+  --bg: var(--surface); --bg-soft: var(--surface-alt);
+  --card: var(--surface); --card-raised: var(--surface-alt);
+  --line: var(--border); --line-strong: var(--border);
+  --text: var(--ink); --muted: var(--status-neutral); --faint: var(--status-neutral);
+  --violet: var(--brand); --violet-soft: var(--surface-alt);
+  --cyan: var(--brand); --cyan-soft: var(--surface-alt);
+  --good: var(--brand); --good-soft: var(--surface-alt);
+  --warn: var(--status-amber); --warn-soft: var(--status-amber-bg);
+  --bad: var(--status-red); --bad-soft: var(--status-red-bg);
   --sans: "Manrope", system-ui, -apple-system, "Segoe UI", sans-serif;
   --mono: "JetBrains Mono", ui-monospace, SFMono-Regular, Menlo, monospace;
 }
 
-/* Токены для компонентов shadcn/ui (Button). */
 @theme inline {
   --color-background: var(--bg);
   --color-foreground: var(--text);
   --color-primary: var(--violet);
-  --color-primary-foreground: #120b22;
+  --color-primary-foreground: var(--surface);
   --color-destructive: var(--bad);
-  --color-destructive-foreground: #2a0c12;
+  --color-destructive-foreground: var(--surface);
   --color-accent: var(--card-raised);
   --color-accent-foreground: var(--text);
   --color-secondary: var(--card-raised);
@@ -118,8 +106,8 @@ a { color: inherit; text-decoration: none; }
 .orb-ambient { position: absolute; inset: 18%; border-radius: 50%; background: radial-gradient(circle, color-mix(in srgb, var(--violet) 45%, transparent), transparent 70%); filter: blur(30px); }
 .orb-canvas { position: absolute !important; inset: 0; }
 .orb-canvas canvas { width: 100% !important; height: 100% !important; display: block; }
-.orb-fallback { background: radial-gradient(circle at 60% 35%, #bff3ff 0, var(--cyan) 18%, var(--violet) 45%, #1b1840 72%, transparent 74%); border-radius: 50%; animation: breathe 5s ease-in-out infinite; }
-.orb-center { position: absolute; inset: 0; display: grid; place-items: center; color: color-mix(in srgb, #fff 80%, transparent); pointer-events: none; }
+.orb-fallback { background: radial-gradient(circle at 60% 35%, var(--brand-accent) 0, var(--cyan) 18%, var(--violet) 45%, var(--ink-strong) 72%, transparent 74%); border-radius: 50%; animation: breathe 5s ease-in-out infinite; }
+.orb-center { position: absolute; inset: 0; display: grid; place-items: center; color: color-mix(in srgb, var(--surface) 80%, transparent); pointer-events: none; }
 .orb-stage.is-listening .orb-ambient { background: radial-gradient(circle, color-mix(in srgb, var(--cyan) 50%, transparent), transparent 70%); }
 
 .voice-status { display: inline-flex; align-items: center; gap: 8px; font-size: 13px; color: var(--muted); min-height: 20px; }
@@ -143,7 +131,7 @@ a { color: inherit; text-decoration: none; }
 .message-avatar { background: var(--violet-soft); color: var(--violet); }
 .user-avatar { background: var(--cyan-soft); color: var(--cyan); }
 .message-content { padding: 11px 15px; border-radius: 16px; white-space: pre-wrap; overflow-wrap: anywhere; }
-.message-user .message-content { background: linear-gradient(135deg, #6e4fd8, #4a7fd8); color: #fff; border-bottom-right-radius: 5px; }
+.message-user .message-content { background: linear-gradient(135deg, var(--brand), var(--brand)); color: var(--surface); border-bottom-right-radius: 5px; }
 .message-assistant .message-content { background: var(--card); border: 1px solid var(--line); border-bottom-left-radius: 5px; }
 .handoff-note { display: inline-flex; align-items: center; gap: 6px; font-size: 12px; color: var(--warn); }
 .thinking { display: inline-flex; gap: 5px; padding: 12px 16px; background: var(--card); border: 1px solid var(--line); border-radius: 16px; align-self: flex-start; }
@@ -160,7 +148,7 @@ a { color: inherit; text-decoration: none; }
 .trace-row { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
 .trace-row > b { font-weight: 600; color: var(--faint); font-size: 11px; letter-spacing: .06em; text-transform: uppercase; margin-right: 2px; }
 .chip { display: inline-flex; align-items: center; gap: 5px; padding: 2px 9px; border-radius: 999px; font-family: var(--mono); font-size: 11.5px; background: var(--card-raised); color: var(--text); border: 1px solid var(--line); }
-.chip.scenario { background: var(--violet-soft); border-color: transparent; color: #d7c7ff; }
+.chip.scenario { background: var(--violet-soft); border-color: transparent; color: var(--brand); }
 .chip.good { background: var(--good-soft); border-color: transparent; color: var(--good); }
 .chip.warn { background: var(--warn-soft); border-color: transparent; color: var(--warn); }
 .chip.bad { background: var(--bad-soft); border-color: transparent; color: var(--bad); }
@@ -221,7 +209,7 @@ a { color: inherit; text-decoration: none; }
 .table-scroll td time { display: block; font-family: var(--mono); font-size: 12.5px; }
 .table-scroll td small { display: block; margin-top: 3px; font-family: var(--mono); font-size: 11px; color: var(--faint); }
 .table-answer { color: var(--muted); display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; }
-.route-badge { display: inline-block; padding: 2px 9px; border-radius: 999px; font-size: 12px; font-weight: 600; background: var(--violet-soft); color: #d7c7ff; }
+.route-badge { display: inline-block; padding: 2px 9px; border-radius: 999px; font-size: 12px; font-weight: 600; background: var(--violet-soft); color: var(--brand); }
 .route-badge.route-warn { background: var(--warn-soft); color: var(--warn); }
 .detail-button { display: grid; place-items: center; width: 34px; height: 34px; border-radius: 10px; border: 1px solid var(--line); background: var(--card-raised); color: var(--muted); cursor: pointer; }
 .detail-button:hover { color: var(--text); border-color: var(--line-strong); }
@@ -237,7 +225,7 @@ a { color: inherit; text-decoration: none; }
 .scenario-row i { display: block; height: 100%; border-radius: 4px; background: linear-gradient(90deg, var(--violet), var(--cyan)); }
 .scenario-row strong { text-align: right; font-variant-numeric: tabular-nums; }
 
-.detail-overlay { position: fixed; inset: 0; z-index: 40; background: rgb(5 6 10 / .65); backdrop-filter: blur(3px); display: flex; justify-content: flex-end; }
+.detail-overlay { position: fixed; inset: 0; z-index: 40; background: color-mix(in srgb, var(--ink-strong) 65%, transparent); backdrop-filter: blur(3px); display: flex; justify-content: flex-end; }
 .trace-detail { width: min(560px, 100%); height: 100%; overflow-y: auto; background: var(--bg-soft); border-left: 1px solid var(--line); padding: 20px clamp(16px, 3vw, 28px) 32px; display: grid; gap: 10px; align-content: start; }
 .trace-detail h2 { margin: 6px 0 0; font-size: 22px; }
 .trace-detail h3 { margin: 14px 0 0; font-size: 12px; font-weight: 600; letter-spacing: .08em; text-transform: uppercase; color: var(--faint); }
@@ -257,3 +245,18 @@ a { color: inherit; text-decoration: none; }
   .stage-bar { grid-template-columns: 90px 1fr 56px; }
   .scenario-row { grid-template-columns: 110px 1fr 32px; }
 }
+
+/* Меняем только оформление, сохраняя расположение компонентов. */
+h1, h2, h3 { font-weight: 700; color: var(--ink-strong); }
+.panel-header h2, .scenario-panel h2, .trace-detail h3 { font-weight: 700; }
+.site-header nav a.nav-active, .message-user .message-content { background: var(--brand); color: var(--surface); }
+.hero-heading h1 span { background: none; color: var(--brand); }
+.orb-center { color: var(--brand); }
+.orb-ambient { background: radial-gradient(circle, color-mix(in srgb, var(--brand-accent) 22%, transparent), transparent 70%); }
+.talk-button { box-shadow: none; border-radius: var(--radius) !important; font-weight: 700; }
+.talk-button:hover { outline: 2px solid var(--brand-accent); outline-offset: 3px; }
+.metric:first-child { background: var(--brand); color: var(--surface); }
+.metric:first-child span, .metric:first-child svg { color: var(--surface); }
+.trace-row .chip.good { color: var(--status-neutral); background: var(--status-neutral-bg); border-color: var(--status-neutral); }
+.trace-row .chip.warn, .chip.bad { color: var(--status-red); background: var(--status-red-bg); border-color: var(--status-red); }
+.trace-row .chip[title]:not(.good):not(.warn):not(.bad) { color: var(--status-amber); background: var(--status-amber-bg); border-color: var(--status-amber); }
