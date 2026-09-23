@@ -28,18 +28,41 @@ async def _openai(text: str) -> AsyncIterator[bytes]:
     yield resp.content
 
 
+_disabled: set[str] = set()  # у ключа нет прав на TTS (401/403) — до перезапуска не пробуем
+
+
 def provider() -> str:
-    if settings.tts_provider == "elevenlabs" and settings.elevenlabs_api_key:
+    if settings.tts_provider == "elevenlabs" and settings.elevenlabs_api_key and "elevenlabs" not in _disabled:
         return "elevenlabs"
     if settings.tts_provider in ("elevenlabs", "openai") and settings.openai_api_key:
         return "openai"
     return "browser"
 
 
+async def _with_fallback(text: str) -> AsyncIterator[bytes]:
+    """ElevenLabs, а если он упал до первого байта (ключ без прав, лимит, сеть) — OpenAI TTS: бот не замолкает."""
+    started = False
+    try:
+        async for chunk in _elevenlabs(text):
+            started = True
+            yield chunk
+        return
+    except httpx.HTTPStatusError as e:
+        if e.response.status_code in (401, 403):
+            _disabled.add("elevenlabs")
+        if started or not settings.openai_api_key:
+            raise
+    except Exception:
+        if started or not settings.openai_api_key:
+            raise
+    async for chunk in _openai(text):
+        yield chunk
+
+
 def synthesize(text: str) -> AsyncIterator[bytes] | None:
     name = provider()
     if name == "elevenlabs":
-        return _elevenlabs(text)
+        return _with_fallback(text)
     if name == "openai":
         return _openai(text)
     return None
