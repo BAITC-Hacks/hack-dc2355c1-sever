@@ -1,10 +1,16 @@
 import { useEffect, useRef, useState } from "react";
 import { AudioPlayer } from "@/lib/audio-player";
 
+export interface ScenarioHit { scenario_id: string; confidence: number; reason?: string }
+export interface TraceAction { name: string; mode?: "preview" | "execute"; args?: Record<string, unknown>; result?: unknown; guard?: string; blocked?: boolean }
 export interface Trace {
   session_id: string; turn: number; user_text: string; bot_text: string; ts: number;
-  path: string; stages_ms: Record<string, number>; handoff_queue?: string;
-  decision: { action: string; language: string; reply_language: string; reasoning: string; scenarios: { scenario_id: string; confidence: number }[] };
+  path: string; stages_ms: Record<string, number>; handoff_queue?: string | null;
+  actions?: TraceAction[]; client_id?: string | null; active_scenario?: string | null; topic_queue?: string[];
+  decision: {
+    action: string; language: string; reply_language: string; reasoning: string; policy_note?: string;
+    scenarios: ScenarioHit[]; alternatives?: ScenarioHit[]; slots: Record<string, unknown>;
+  };
 }
 export interface Message { id: string; role: "user" | "assistant"; text: string; trace?: Trace }
 export const wsUrl = (path: string) => `${location.protocol === "https:" ? "wss" : "ws"}://${location.host}${path}`;
