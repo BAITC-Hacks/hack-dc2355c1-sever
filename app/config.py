@@ -22,10 +22,11 @@ class Settings(BaseSettings):
     elevenlabs_stt_model: str = "scribe_v2"
     elevenlabs_stt_language: str = "kaz"
     elevenlabs_tts_model: str = "eleven_flash_v2_5"
-    elevenlabs_voice_id: str = "21m00Tcm4TlvDq8ikWAM"
+    elevenlabs_voice_id: str = "Jbte7ht1CqapnZvc4KpK"  # Kari, русскоязычный: на kk разборчивее англоязычного голоса
 
     stt_provider: str = "openai"  # gpt-4o-transcribe точнее на смешанной ru/kk речи; elevenlabs — запасной
     tts_provider: str = "elevenlabs"
+    tts_provider_kk: str = ""  # отдельный провайдер для казахских ответов (openai разборчивее, но +~1.2 с); пусто = как TTS_PROVIDER
 
     route_threshold: float = 0.75  # ≥ → запуск сценария
     clarify_threshold: float = 0.45  # ниже → неуверенность; два раза подряд → оператор
