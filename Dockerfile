@@ -3,7 +3,9 @@ WORKDIR /ui
 COPY frontend/package.json frontend/package-lock.json ./
 RUN npm ci
 COPY frontend/ ./
-RUN npm run build
+# Сборка фронта не должна ронять деплой: если она упала, static/ui остаётся пустой
+# и FastAPI отдаёт прежние страницы из static/ (см. client_page в app/main.py).
+RUN mkdir -p /static/ui && (npm run build || (echo "!!! Сборка фронтенда упала — отдаём прежние страницы" && mkdir -p /static/ui))
 
 FROM python:3.12-slim
 
